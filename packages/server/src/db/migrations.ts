@@ -55,15 +55,14 @@ CREATE TABLE IF NOT EXISTS checkins (
 `
 
 const TRIGGER_STATEMENTS = [
-  `CREATE OR REPLACE FUNCTION enforce_clan_cap() RETURNS trigger AS $fn$
+  `CREATE OR REPLACE FUNCTION enforce_clan_cap() RETURNS trigger AS $$
 BEGIN
-  PERFORM 1 FROM clans WHERE id = NEW.clan_id FOR UPDATE;
   IF (SELECT count(*) FROM clan_members WHERE clan_id = NEW.clan_id) >= 6 THEN
-    RAISE EXCEPTION 'clan % is full', NEW.clan_id USING ERRCODE = 'check_violation';
+    RAISE EXCEPTION 'clan % is full', NEW.clan_id;
   END IF;
   RETURN NEW;
 END
-$fn$ LANGUAGE plpgsql`,
+$$ LANGUAGE plpgsql`,
   `DROP TRIGGER IF EXISTS clan_cap ON clan_members`,
   `CREATE TRIGGER clan_cap BEFORE INSERT ON clan_members
 FOR EACH ROW EXECUTE FUNCTION enforce_clan_cap()`,
