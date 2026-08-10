@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import type { Db } from '../db/client.js'
 import { createSession } from './sessions.js'
+import { encryptSecret } from '../lib/crypto.js'
 
 export class GithubExchangeError extends Error {}
 
@@ -43,13 +44,18 @@ export function makeGithubExchange(clientId: string, clientSecret: string): Gith
 
 export function registerGithubAuth(
   app: FastifyInstance,
-  deps: { db: Db; clientId: string; exchange: GithubExchange },
+  deps: { db: Db; secretKey?: Buffer; clientId: string; exchange: GithubExchange },
 ): void {
   const pending = new Map<string, { redirectUri: string; expiresAt: number }>()
 
-  app.get<{ Querystring: { redirect_uri?: string } }>('/auth/github/start', async (req, reply) => {
+  app.get<{ Querystring: { redirect_uri?: string; scope?: string } }>('/auth/github/start', async (req, reply) => {
     if (!req.query.redirect_uri || !isLoopbackRedirect(req.query.redirect_uri)) {
       return reply.code(400).send({ error: 'redirect_uri must be a loopback address' })
+    }
+
+    const scope = req.query.scope ?? ''
+    if (scope !== '' && scope !== 'repo') {
+      return reply.code(400).send({ error: 'scope must be empty or "repo"' })
     }
 
     // Sweep expired entries
@@ -60,6 +66,9 @@ export function registerGithubAuth(
     const url = new URL('https://github.com/login/oauth/authorize')
     url.searchParams.set('client_id', deps.clientId)
     url.searchParams.set('state', state)
+    if (scope === 'repo') {
+      url.searchParams.set('scope', 'repo')
+    }
     return reply.redirect(url.toString(), 302)
   })
 
@@ -90,7 +99,15 @@ export function registerGithubAuth(
          RETURNING id`,
         [gh.githubId, gh.handle],
       )
-      const token = await createSession(deps.db, Number(rows[0]!.id))
+      const userId = Number(rows[0]!.id)
+      const token = await createSession(deps.db, userId)
+      if (deps.secretKey) {
+        await deps.db.query(
+          `INSERT INTO user_integrations (user_id, provider, secret_enc) VALUES ($1, 'github', $2)
+           ON CONFLICT (user_id, provider) DO UPDATE SET secret_enc = EXCLUDED.secret_enc`,
+          [userId, encryptSecret(gh.accessToken, deps.secretKey)],
+        )
+      }
       return reply.redirect(`${redirectUri}#token=${token}`, 302)
     },
   )

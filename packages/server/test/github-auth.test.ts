@@ -1,8 +1,10 @@
 import { expect, it } from 'vitest'
+import { randomBytes } from 'node:crypto'
 import { buildApp } from '../src/app.js'
 import { makeTestDb } from './helpers.js'
 import { userFromRequest } from '../src/auth/sessions.js'
 import { GithubExchangeError } from '../src/auth/github.js'
+import { decryptSecret } from '../src/lib/crypto.js'
 
 async function loginFlow(db: Awaited<ReturnType<typeof makeTestDb>>) {
   const app = buildApp({
@@ -106,4 +108,29 @@ it('a failing exchange returns 502, not a crash', async () => {
   const cb = await app.inject({ method: 'GET', url: `/auth/github/callback?code=bad&state=${state}` })
   expect(cb.statusCode).toBe(502)
   expect(cb.json()).toEqual({ error: 'github exchange failed' })
+})
+
+it('callback stores the encrypted github token when secretKey is set', async () => {
+  const db = await makeTestDb()
+  const key = randomBytes(32)
+  const app = buildApp({
+    db,
+    secretKey: key,
+    github: {
+      clientId: 'x',
+      exchange: async () => ({ githubId: 7, handle: 'tok', accessToken: 'gho_secret' }),
+    },
+  })
+  const start = await app.inject({
+    method: 'GET', url: '/auth/github/start?redirect_uri=http://127.0.0.1:9999/cb&scope=repo',
+  })
+  expect(start.headers.location).toContain('scope=repo')
+  const state = new URL(start.headers.location as string).searchParams.get('state')!
+  await app.inject({ method: 'GET', url: `/auth/github/callback?code=c&state=${state}` })
+  const { rows } = await db.query<{ secret_enc: string }>(
+    `SELECT secret_enc FROM user_integrations ui JOIN users u ON u.id = ui.user_id
+     WHERE u.github_id = 7 AND ui.provider = 'github'`,
+  )
+  expect(rows).toHaveLength(1)
+  expect(decryptSecret(rows[0]!.secret_enc, key)).toBe('gho_secret')
 })

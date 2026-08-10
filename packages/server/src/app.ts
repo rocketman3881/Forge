@@ -10,6 +10,7 @@ import { parseId } from './lib/params.js'
 
 export interface AppDeps {
   db: Db
+  secretKey?: Buffer
   github?: { clientId: string; exchange: GithubExchange }
 }
 
@@ -19,7 +20,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   registerProjects(app, { db: deps.db })
   registerClans(app, { db: deps.db })
   registerCheckins(app, { db: deps.db })
-  if (deps.github) registerGithubAuth(app, { db: deps.db, ...deps.github })
+  if (deps.github) registerGithubAuth(app, { db: deps.db, secretKey: deps.secretKey, ...deps.github })
 
   app.get<{ Params: { projectId: string } }>('/projects/:projectId/events', async (req, reply) => {
     const user = await userFromRequest(deps.db, req)

@@ -52,6 +52,31 @@ CREATE TABLE IF NOT EXISTS checkins (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (clan_id, user_id, week_start)
 );
+CREATE TABLE IF NOT EXISTS user_integrations (
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  provider TEXT NOT NULL CHECK (provider IN ('github')),
+  secret_enc TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, provider)
+);
+CREATE TABLE IF NOT EXISTS project_integrations (
+  project_id BIGINT NOT NULL REFERENCES projects(id),
+  provider TEXT NOT NULL CHECK (provider IN ('stripe')),
+  secret_enc TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (project_id, provider)
+);
+CREATE TABLE IF NOT EXISTS domain_challenges (
+  project_id BIGINT PRIMARY KEY REFERENCES projects(id),
+  domain TEXT NOT NULL,
+  token TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS probe_results (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  project_id BIGINT NOT NULL REFERENCES projects(id),
+  probed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ok BOOLEAN NOT NULL
+);
 `
 
 const TRIGGER_STATEMENTS = [
