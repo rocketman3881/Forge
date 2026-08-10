@@ -1,0 +1,5 @@
+{
+  "name": "forge",
+  "private": true,
+  "scripts": { "test": "pnpm -r test" }
+}
