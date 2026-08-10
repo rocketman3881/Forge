@@ -3,17 +3,30 @@ import type { Db } from '../db/client.js'
 import { userFromRequest } from '../auth/sessions.js'
 
 export function registerProjects(app: FastifyInstance, deps: { db: Db }): void {
-  app.post<{ Body: { name: string } }>('/projects', async (req, reply) => {
-    const user = await userFromRequest(deps.db, req)
-    if (!user) return reply.code(401).send({ error: 'unauthenticated' })
-    const { rows } = await deps.db.query<{ id: string | number }>(
-      `INSERT INTO projects (owner_id, name) VALUES ($1, $2)
-       ON CONFLICT (owner_id, name) DO NOTHING RETURNING id`,
-      [user.id, req.body.name],
-    )
-    if (!rows[0]) return reply.code(409).send({ error: 'project name already exists' })
-    return reply.code(201).send({ id: Number(rows[0].id), name: req.body.name })
-  })
+  app.post<{ Body: { name: string } }>(
+    '/projects',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          required: ['name'],
+          properties: { name: { type: 'string', minLength: 1, maxLength: 100 } },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (req, reply) => {
+      const user = await userFromRequest(deps.db, req)
+      if (!user) return reply.code(401).send({ error: 'unauthenticated' })
+      const { rows } = await deps.db.query<{ id: string | number }>(
+        `INSERT INTO projects (owner_id, name) VALUES ($1, $2)
+         ON CONFLICT (owner_id, name) DO NOTHING RETURNING id`,
+        [user.id, req.body.name],
+      )
+      if (!rows[0]) return reply.code(409).send({ error: 'project name already exists' })
+      return reply.code(201).send({ id: Number(rows[0].id), name: req.body.name })
+    },
+  )
 
   app.get('/projects', async (req, reply) => {
     const user = await userFromRequest(deps.db, req)

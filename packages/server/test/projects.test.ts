@@ -34,4 +34,17 @@ it('duplicate name for the same owner is 409; no auth is 401', async () => {
   expect(dup.statusCode).toBe(409)
   const anon = await app.inject({ method: 'POST', url: '/projects', payload: { name: 'y' } })
   expect(anon.statusCode).toBe(401)
+  const anonGet = await app.inject({ method: 'GET', url: '/projects' })
+  expect(anonGet.statusCode).toBe(401)
+})
+
+it('rejects missing, empty, and oversized names with 400', async () => {
+  const db = await makeTestDb()
+  const app = buildApp({ db })
+  const { token } = await createUserWithToken(db, 1, 'tomr')
+  const auth = { authorization: `Bearer ${token}` }
+  for (const payload of [undefined, {}, { name: '' }, { name: 'x'.repeat(101) }]) {
+    const res = await app.inject({ method: 'POST', url: '/projects', headers: auth, payload })
+    expect(res.statusCode >= 400 && res.statusCode < 500).toBe(true)
+  }
 })
