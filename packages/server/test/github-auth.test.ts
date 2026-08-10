@@ -54,3 +54,35 @@ it('unknown state is rejected', async () => {
   const res = await app.inject({ method: 'GET', url: '/auth/github/callback?code=abc&state=bogus' })
   expect(res.statusCode).toBe(400)
 })
+
+it('rejects non-loopback redirect_uri', async () => {
+  const db = await makeTestDb()
+  const app = buildApp({
+    db,
+    github: { clientId: 'x', exchange: async () => ({ githubId: 1, handle: 'h' }) },
+  })
+  const res = await app.inject({
+    method: 'GET',
+    url: '/auth/github/start?redirect_uri=' + encodeURIComponent('https://evil.example/cb'),
+  })
+  expect(res.statusCode).toBe(400)
+  const missing = await app.inject({ method: 'GET', url: '/auth/github/start' })
+  expect(missing.statusCode).toBe(400)
+})
+
+it('a consumed state cannot be replayed', async () => {
+  const db = await makeTestDb()
+  const app = buildApp({
+    db,
+    github: { clientId: 'x', exchange: async (code) => ({ githubId: 9, handle: `u${code}` }) },
+  })
+  const start = await app.inject({
+    method: 'GET',
+    url: '/auth/github/start?redirect_uri=http://127.0.0.1:9999/cb',
+  })
+  const state = new URL(start.headers.location as string).searchParams.get('state')!
+  const first = await app.inject({ method: 'GET', url: `/auth/github/callback?code=a&state=${state}` })
+  expect(first.statusCode).toBe(302)
+  const replay = await app.inject({ method: 'GET', url: `/auth/github/callback?code=a&state=${state}` })
+  expect(replay.statusCode).toBe(400)
+})
