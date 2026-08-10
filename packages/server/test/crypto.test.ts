@@ -22,4 +22,7 @@ it('loadSecretKey enforces 64 hex chars', () => {
   expect(loadSecretKey({ FORGE_SECRET: 'ab'.repeat(32) }).length).toBe(32)
   expect(() => loadSecretKey({})).toThrow()
   expect(() => loadSecretKey({ FORGE_SECRET: 'abcd' })).toThrow()
+  for (const bad of ['a'.repeat(65), 'a'.repeat(64) + 'zz', 'a'.repeat(62) + 'zz', 'a'.repeat(64) + '\n']) {
+    expect(() => loadSecretKey({ FORGE_SECRET: bad })).toThrow()
+  }
 })

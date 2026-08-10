@@ -134,3 +134,16 @@ it('callback stores the encrypted github token when secretKey is set', async () 
   expect(rows).toHaveLength(1)
   expect(decryptSecret(rows[0]!.secret_enc, key)).toBe('gho_secret')
 })
+
+it('rejects invalid scope parameter', async () => {
+  const db = await makeTestDb()
+  const app = buildApp({
+    db,
+    github: { clientId: 'x', exchange: async () => ({ githubId: 1, handle: 'h', accessToken: 'gho_test' }) },
+  })
+  const res = await app.inject({
+    method: 'GET',
+    url: '/auth/github/start?redirect_uri=http://127.0.0.1:9999/cb&scope=foo',
+  })
+  expect(res.statusCode).toBe(400)
+})

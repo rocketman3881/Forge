@@ -3,9 +3,10 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 export function loadSecretKey(env: NodeJS.ProcessEnv = process.env): Buffer {
   const raw = env.FORGE_SECRET
   if (!raw) throw new Error('FORGE_SECRET is required')
-  const key = Buffer.from(raw, 'hex')
-  if (key.length !== 32) throw new Error('FORGE_SECRET must be 64 hex chars (32 bytes)')
-  return key
+  if (!/^[0-9a-fA-F]{64}$/.test(raw)) {
+    throw new Error('FORGE_SECRET must be exactly 64 hex chars (32 bytes)')
+  }
+  return Buffer.from(raw, 'hex')
 }
 
 export function encryptSecret(plain: string, key: Buffer): string {
