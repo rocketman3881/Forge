@@ -70,3 +70,22 @@ export async function listProjectEvents(db: Db, projectId: number): Promise<Mile
   )
   return rows.map(toEvent)
 }
+
+export async function listClanFeed(
+  db: Db,
+  clanId: number,
+  limit = 50,
+): Promise<Array<MilestoneEvent & { handle: string; projectName: string }>> {
+  const { rows } = await db.query<Row & { handle: string; project_name: string }>(
+    `SELECT e.id, e.project_id, e.vertical, e.rung, e.evidence_ref, e.verified_at,
+            u.handle, p.name AS project_name
+     FROM milestone_events e
+     JOIN projects p ON p.id = e.project_id
+     JOIN users u ON u.id = p.owner_id
+     WHERE p.owner_id IN (SELECT user_id FROM clan_members WHERE clan_id = $1)
+     ORDER BY e.verified_at DESC, e.id DESC
+     LIMIT $2`,
+    [clanId, limit],
+  )
+  return rows.map((r) => ({ ...toEvent(r), handle: r.handle, projectName: r.project_name }))
+}
