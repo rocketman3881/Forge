@@ -51,3 +51,21 @@ it('an already-earned rung is a no-op even with a new dedupeKey', async () => {
   expect(dup.created).toBe(false)
   expect(await listProjectEvents(db, projectId)).toHaveLength(1)
 })
+
+it('a dedupe key reused across projects resolves to the original event, never a wrong-project duplicate', async () => {
+  const a = await appendMilestone(db, {
+    projectId, vertical: 'build', rung: 1,
+    evidenceRef: 'github:commit:abc', dedupeKey: 'shared-key',
+  })
+  const { rows } = await db.query<{ id: number }>(
+    `INSERT INTO projects (owner_id, name) VALUES (1, 'second') RETURNING id`,
+  )
+  const projectB = Number(rows[0]!.id)
+  const b = await appendMilestone(db, {
+    projectId: projectB, vertical: 'build', rung: 1,
+    evidenceRef: 'github:commit:def', dedupeKey: 'shared-key',
+  })
+  expect(b.created).toBe(false)
+  expect(b.event.id).toBe(a.event.id)
+  expect(await listProjectEvents(db, projectB)).toHaveLength(0)
+})

@@ -47,10 +47,18 @@ export async function appendMilestone(
   const existing = await db.query<Row>(
     `SELECT id, project_id, vertical, rung, evidence_ref, verified_at
      FROM milestone_events
-     WHERE (project_id = $1 AND vertical = $2 AND rung = $3) OR dedupe_key = $4`,
+     WHERE (project_id = $1 AND vertical = $2 AND rung = $3) OR dedupe_key = $4
+     ORDER BY (project_id = $1 AND vertical = $2 AND rung = $3) DESC
+     LIMIT 1`,
     [input.projectId, input.vertical, input.rung, input.dedupeKey],
   )
-  return { created: false, event: toEvent(existing.rows[0]!) }
+  const row = existing.rows[0]
+  if (!row) {
+    throw new Error(
+      `appendMilestone: insert conflicted but no existing event found (project ${input.projectId}, ${input.vertical}.${input.rung}, dedupe ${input.dedupeKey})`,
+    )
+  }
+  return { created: false, event: toEvent(row) }
 }
 
 export async function listProjectEvents(db: Db, projectId: number): Promise<MilestoneEvent[]> {
