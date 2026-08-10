@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS clan_members (
 CREATE TABLE IF NOT EXISTS milestone_events (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   project_id BIGINT NOT NULL REFERENCES projects(id),
-  vertical TEXT NOT NULL,
+  vertical TEXT NOT NULL CHECK (vertical IN ('build','ship','revenue')),
   rung INT NOT NULL,
   evidence_ref TEXT NOT NULL,
   dedupe_key TEXT UNIQUE NOT NULL,
