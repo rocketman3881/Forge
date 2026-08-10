@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS checkins (
 const TRIGGER_STATEMENTS = [
   `CREATE OR REPLACE FUNCTION enforce_clan_cap() RETURNS trigger AS $$
 BEGIN
+  PERFORM pg_advisory_xact_lock(NEW.clan_id);
   IF (SELECT count(*) FROM clan_members WHERE clan_id = NEW.clan_id) >= 6 THEN
     RAISE EXCEPTION 'clan % is full', NEW.clan_id USING ERRCODE = 'check_violation';
   END IF;
