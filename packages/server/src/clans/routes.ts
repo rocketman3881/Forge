@@ -73,7 +73,8 @@ export function registerClans(app: FastifyInstance, deps: { db: Db }): void {
         ])
       } catch (err) {
         const msg = err instanceof Error ? err.message : ''
-        if (msg.includes('is full')) return reply.code(409).send({ error: 'clan is full' })
+        const code = err instanceof Error && 'code' in err ? (err as { code?: string }).code : ''
+        if (msg.includes('is full') || code === '23514') return reply.code(409).send({ error: 'clan is full' })
         throw err
       }
       return reply.send({ id: clanId, name: found.name })
