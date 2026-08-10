@@ -2,7 +2,7 @@
   "name": "@forge/server",
   "private": true,
   "type": "module",
-  "scripts": { "test": "vitest run", "dev": "tsx src/index.ts" },
+  "scripts": { "test": "vitest run", "dev": "tsx src/index.ts", "typecheck": "tsc --noEmit" },
   "dependencies": { "fastify": "^5.2.0", "pg": "^8.13.0" },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.15",

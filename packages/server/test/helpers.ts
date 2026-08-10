@@ -6,9 +6,9 @@ import { createSession } from '../src/auth/sessions.js'
 export async function makeTestDb(): Promise<Db> {
   const lite = new PGlite()
   const db: Db = {
-    query: async (sql, params) => {
+    query: async <T,>(sql: string, params?: unknown[]) => {
       const res = await lite.query(sql, params as unknown[] | undefined)
-      return { rows: res.rows as Record<string, unknown>[] }
+      return { rows: res.rows as T[] }
     },
   }
   await migrate(db)
