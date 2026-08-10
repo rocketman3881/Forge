@@ -88,3 +88,18 @@ it('rejects empty shipped and oversized fields with 400', async () => {
   }
 })
 
+it('a dormant member checkin does not count toward completed', async () => {
+  const { db, app, tom, sarah, clanId } = await setup()
+  await app.inject({
+    method: 'POST', url: `/clans/${clanId}/checkins`,
+    headers: { authorization: `Bearer ${sarah.token}` },
+    payload: { shipped: 'x', blocked: '', next: '' },
+  })
+  await db.query(`UPDATE clan_members SET status = 'dormant' WHERE user_id = $1`, [sarah.userId])
+  const status = await app.inject({
+    method: 'GET', url: `/clans/${clanId}/checkins/status`,
+    headers: { authorization: `Bearer ${tom.token}` },
+  })
+  expect(status.json()).toMatchObject({ completed: 0, total: 1 })
+})
+

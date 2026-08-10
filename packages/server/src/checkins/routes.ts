@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import type { Db } from '../db/client.js'
 import { userFromRequest } from '../auth/sessions.js'
+import { parseId } from '../lib/params.js'
 
 export function weekStartUtc(date: Date): string {
   const daysSinceMonday = (date.getUTCDay() + 6) % 7
@@ -30,7 +31,8 @@ export function registerCheckins(app: FastifyInstance, deps: { db: Db }): void {
     async (req, reply) => {
       const user = await userFromRequest(deps.db, req)
       if (!user) return reply.code(401).send({ error: 'unauthenticated' })
-      const clanId = Number(req.params.clanId)
+      const clanId = parseId(req.params.clanId)
+      if (clanId === null) return reply.code(400).send({ error: 'invalid id' })
       const member = await deps.db.query(
         `SELECT 1 FROM clan_members WHERE clan_id = $1 AND user_id = $2`,
         [clanId, user.id],
@@ -54,7 +56,8 @@ export function registerCheckins(app: FastifyInstance, deps: { db: Db }): void {
   app.get<{ Params: { clanId: string } }>('/clans/:clanId/checkins/status', async (req, reply) => {
     const user = await userFromRequest(deps.db, req)
     if (!user) return reply.code(401).send({ error: 'unauthenticated' })
-    const clanId = Number(req.params.clanId)
+    const clanId = parseId(req.params.clanId)
+    if (clanId === null) return reply.code(400).send({ error: 'invalid id' })
     const member = await deps.db.query(
       `SELECT 1 FROM clan_members WHERE clan_id = $1 AND user_id = $2`,
       [clanId, user.id],
@@ -64,8 +67,10 @@ export function registerCheckins(app: FastifyInstance, deps: { db: Db }): void {
     const week = weekStartUtc(new Date())
     const { rows } = await deps.db.query<{ completed: number; total: number }>(
       `SELECT
-         (SELECT count(DISTINCT user_id)::int FROM checkins
-           WHERE clan_id = $1 AND week_start = $2) AS completed,
+         (SELECT count(DISTINCT c.user_id)::int FROM checkins c
+           JOIN clan_members m ON m.clan_id = c.clan_id AND m.user_id = c.user_id
+             AND m.status = 'active'
+           WHERE c.clan_id = $1 AND c.week_start = $2) AS completed,
          (SELECT count(*)::int FROM clan_members
            WHERE clan_id = $1 AND status = 'active') AS total`,
       [clanId, week],

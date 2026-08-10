@@ -6,6 +6,7 @@ import { registerClans } from './clans/routes.js'
 import { registerCheckins } from './checkins/routes.js'
 import { listProjectEvents, listClanFeed } from './events/log.js'
 import { userFromRequest } from './auth/sessions.js'
+import { parseId } from './lib/params.js'
 
 export interface AppDeps {
   db: Db
@@ -23,7 +24,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.get<{ Params: { projectId: string } }>('/projects/:projectId/events', async (req, reply) => {
     const user = await userFromRequest(deps.db, req)
     if (!user) return reply.code(401).send({ error: 'unauthenticated' })
-    const projectId = Number(req.params.projectId)
+    const projectId = parseId(req.params.projectId)
+    if (projectId === null) return reply.code(400).send({ error: 'invalid id' })
     const owner = await deps.db.query(
       `SELECT 1 FROM projects WHERE id = $1 AND owner_id = $2`,
       [projectId, user.id],
@@ -35,7 +37,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.get<{ Params: { clanId: string } }>('/clans/:clanId/feed', async (req, reply) => {
     const user = await userFromRequest(deps.db, req)
     if (!user) return reply.code(401).send({ error: 'unauthenticated' })
-    const clanId = Number(req.params.clanId)
+    const clanId = parseId(req.params.clanId)
+    if (clanId === null) return reply.code(400).send({ error: 'invalid id' })
     const member = await deps.db.query(
       `SELECT 1 FROM clan_members WHERE clan_id = $1 AND user_id = $2`,
       [clanId, user.id],

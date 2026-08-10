@@ -3,7 +3,11 @@ import type { FastifyInstance } from 'fastify'
 import type { Db } from '../db/client.js'
 import { createSession } from './sessions.js'
 
-export type GithubExchange = (code: string) => Promise<{ githubId: number; handle: string }>
+export class GithubExchangeError extends Error {}
+
+export type GithubExchange = (
+  code: string,
+) => Promise<{ githubId: number; handle: string; accessToken: string }>
 
 const STATE_TTL_MS = 10 * 60 * 1000
 
@@ -24,12 +28,16 @@ export function makeGithubExchange(clientId: string, clientSecret: string): Gith
       headers: { accept: 'application/json', 'content-type': 'application/json' },
       body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code }),
     })
-    const { access_token } = (await tokenRes.json()) as { access_token: string }
+    if (!tokenRes.ok) throw new GithubExchangeError(`token exchange failed: ${tokenRes.status}`)
+    const { access_token } = (await tokenRes.json()) as { access_token?: string }
+    if (!access_token) throw new GithubExchangeError('no access_token in exchange response')
     const userRes = await fetch('https://api.github.com/user', {
       headers: { authorization: `Bearer ${access_token}` },
     })
-    const gh = (await userRes.json()) as { id: number; login: string }
-    return { githubId: gh.id, handle: gh.login }
+    if (!userRes.ok) throw new GithubExchangeError(`user fetch failed: ${userRes.status}`)
+    const gh = (await userRes.json()) as { id?: number; login?: string }
+    if (typeof gh.id !== 'number' || !gh.login) throw new GithubExchangeError('malformed user response')
+    return { githubId: gh.id, handle: gh.login, accessToken: access_token }
   }
 }
 
@@ -66,7 +74,16 @@ export function registerGithubAuth(
       const redirectUri = entry.redirectUri
       pending.delete(req.query.state)
 
-      const gh = await deps.exchange(req.query.code)
+      let gh: Awaited<ReturnType<GithubExchange>>
+      try {
+        gh = await deps.exchange(req.query.code)
+      } catch (err) {
+        if (err instanceof GithubExchangeError) {
+          return reply.code(502).send({ error: 'github exchange failed' })
+        }
+        throw err
+      }
+
       const { rows } = await deps.db.query<{ id: string | number }>(
         `INSERT INTO users (github_id, handle) VALUES ($1, $2)
          ON CONFLICT (github_id) DO UPDATE SET handle = EXCLUDED.handle
