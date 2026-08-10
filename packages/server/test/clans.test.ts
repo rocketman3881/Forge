@@ -74,7 +74,7 @@ it('rejects missing, empty, and oversized clan names with 400', async () => {
   const auth = { authorization: `Bearer ${token}` }
   for (const payload of [undefined, {}, { name: '' }, { name: 'x'.repeat(101) }]) {
     const res = await app.inject({ method: 'POST', url: '/clans', headers: auth, payload })
-    expect(res.statusCode >= 400 && res.statusCode < 500).toBe(true)
+    expect(res.statusCode).toBe(400)
   }
 })
 
@@ -85,6 +85,25 @@ it('rejects missing and empty clan join codes with 400', async () => {
   const auth = { authorization: `Bearer ${token}` }
   for (const payload of [undefined, {}, { code: '' }, { code: 'x'.repeat(51) }]) {
     const res = await app.inject({ method: 'POST', url: '/clans/join', headers: auth, payload })
-    expect(res.statusCode >= 400 && res.statusCode < 500).toBe(true)
+    expect(res.statusCode).toBe(400)
   }
+})
+
+it('DB trigger blocks a 7th member even without the route precheck', async () => {
+  const db = await makeTestDb()
+  for (let i = 1; i <= 7; i++) {
+    await db.query(`INSERT INTO users (github_id, handle) VALUES ($1, $2)`, [i, `u${i}`])
+  }
+  await db.query(`INSERT INTO clans (name, invite_code) VALUES ('full', 'code1')`)
+  for (let i = 1; i <= 6; i++) {
+    await db.query(
+      `INSERT INTO clan_members (clan_id, user_id) SELECT id, $1 FROM clans WHERE invite_code = 'code1'`,
+      [i],
+    )
+  }
+  await expect(
+    db.query(
+      `INSERT INTO clan_members (clan_id, user_id) SELECT id, 7 FROM clans WHERE invite_code = 'code1'`,
+    ),
+  ).rejects.toThrow()
 })

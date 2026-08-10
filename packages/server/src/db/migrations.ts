@@ -54,8 +54,26 @@ CREATE TABLE IF NOT EXISTS checkins (
 );
 `
 
+const TRIGGER_STATEMENTS = [
+  `CREATE OR REPLACE FUNCTION enforce_clan_cap() RETURNS trigger AS $fn$
+BEGIN
+  PERFORM 1 FROM clans WHERE id = NEW.clan_id FOR UPDATE;
+  IF (SELECT count(*) FROM clan_members WHERE clan_id = NEW.clan_id) >= 6 THEN
+    RAISE EXCEPTION 'clan % is full', NEW.clan_id USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END
+$fn$ LANGUAGE plpgsql`,
+  `DROP TRIGGER IF EXISTS clan_cap ON clan_members`,
+  `CREATE TRIGGER clan_cap BEFORE INSERT ON clan_members
+FOR EACH ROW EXECUTE FUNCTION enforce_clan_cap()`,
+]
+
 export async function migrate(db: Db): Promise<void> {
   for (const stmt of SCHEMA.split(';').map((s) => s.trim()).filter(Boolean)) {
+    await db.query(stmt)
+  }
+  for (const stmt of TRIGGER_STATEMENTS) {
     await db.query(stmt)
   }
 }

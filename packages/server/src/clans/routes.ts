@@ -67,9 +67,15 @@ export function registerClans(app: FastifyInstance, deps: { db: Db }): void {
       )
       if (count.rows[0]!.n >= 6) return reply.code(409).send({ error: 'clan is full' })
 
-      await deps.db.query(`INSERT INTO clan_members (clan_id, user_id) VALUES ($1, $2)`, [
-        clanId, user.id,
-      ])
+      try {
+        await deps.db.query(`INSERT INTO clan_members (clan_id, user_id) VALUES ($1, $2)`, [
+          clanId, user.id,
+        ])
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : ''
+        if (msg.includes('is full')) return reply.code(409).send({ error: 'clan is full' })
+        throw err
+      }
       return reply.send({ id: clanId, name: found.name })
     },
   )
