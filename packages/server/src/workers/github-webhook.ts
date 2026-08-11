@@ -12,9 +12,9 @@ interface Deps {
 
 function verify(secret: string, raw: string, header: string | undefined): boolean {
   if (!header?.startsWith('sha256=')) return false
-  const expected = createHmac('sha256', secret).update(raw).digest('hex')
   const got = header.slice(7)
-  if (got.length !== expected.length) return false
+  if (!/^[0-9a-f]{64}$/i.test(got)) return false
+  const expected = createHmac('sha256', secret).update(raw).digest('hex')
   return timingSafeEqual(Buffer.from(got, 'hex'), Buffer.from(expected, 'hex'))
 }
 
@@ -36,7 +36,9 @@ export function detectBuildMilestone(event: string, p: Record<string, unknown>):
   }
   if (
     event === 'workflow_run' && p.action === 'completed' &&
-    run?.conclusion === 'success' && run.head_branch === repo?.default_branch
+    run?.conclusion === 'success' &&
+    typeof run.head_branch === 'string' && run.head_branch.length > 0 &&
+    run.head_branch === repo?.default_branch
   ) {
     return { rung: 3, evidenceRef: `github:ci:${run.id ?? 'unknown'}` }
   }

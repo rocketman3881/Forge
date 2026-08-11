@@ -81,3 +81,28 @@ it('ignores unknown repos, unmerged PRs, failed CI, and duplicate deliveries', a
   expect(events).toHaveLength(1)
   expect(events[0]).toMatchObject({ vertical: 'build', rung: 1 })
 })
+
+it('same-length invalid-hex signature gets 401, not a crash', async () => {
+  const { db, app, projectId } = await setup()
+  const res = await deliver(app, 'push', 'dx', {
+    repository: { full_name: 'tomr/launchpage' }, after: 'abc',
+  }, 'sha256=' + 'g'.repeat(64))
+  expect(res.statusCode).toBe(401)
+  expect(await listProjectEvents(db, projectId)).toHaveLength(0)
+})
+
+it('missing event/delivery headers get 400; branchless workflow_run emits nothing', async () => {
+  const { db, app, projectId } = await setup()
+  const body = JSON.stringify({ repository: { full_name: 'tomr/launchpage' }, after: 'a' })
+  const res = await app.inject({
+    method: 'POST', url: '/webhooks/github',
+    headers: { 'content-type': 'application/json', 'x-hub-signature-256': sign(body) },
+    payload: body,
+  })
+  expect(res.statusCode).toBe(400)
+  await deliver(app, 'workflow_run', 'wb', {
+    repository: { full_name: 'tomr/launchpage' },
+    action: 'completed', workflow_run: { id: 3, conclusion: 'success' },
+  })
+  expect(await listProjectEvents(db, projectId)).toHaveLength(0)
+})
