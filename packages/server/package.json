@@ -2,14 +2,24 @@
   "name": "@forge/server",
   "private": true,
   "type": "module",
-  "scripts": { "test": "vitest run", "dev": "tsx src/index.ts", "typecheck": "tsc --noEmit" },
-  "dependencies": { "fastify": "^5.2.0", "pg": "^8.13.0" },
+  "scripts": {
+    "test": "vitest run",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/websocket": "^11.0.0",
+    "fastify": "^5.2.0",
+    "pg": "^8.13.0"
+  },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.15",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.11.10",
+    "@types/ws": "^8.5.13",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "ws": "^8.18.0"
   }
 }

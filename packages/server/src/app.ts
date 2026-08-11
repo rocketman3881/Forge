@@ -10,6 +10,7 @@ import { listProjectEvents, listClanFeed } from './events/log.js'
 import { userFromRequest } from './auth/sessions.js'
 import { parseId } from './lib/params.js'
 import { type Notifier, nullNotifier } from './events/emit.js'
+import { registerClanSocket, type ClanBroadcaster } from './realtime/broadcaster.js'
 
 export interface AppDeps {
   db: Db
@@ -18,10 +19,13 @@ export interface AppDeps {
   github?: { clientId: string; exchange: GithubExchange }
   integrations?: { stripeValidate: StripeValidate; webhookCreate: WebhookCreate }
   githubWebhookSecret?: string
+  broadcaster?: ClanBroadcaster
 }
 
 export function buildApp(deps: AppDeps): FastifyInstance {
   const app = Fastify()
+  const notifier = deps.notifier ?? deps.broadcaster ?? nullNotifier
+  if (deps.broadcaster) registerClanSocket(app, { db: deps.db, broadcaster: deps.broadcaster })
   app.get('/health', async () => ({ ok: true }))
   registerProjects(app, { db: deps.db })
   registerClans(app, { db: deps.db })
@@ -31,13 +35,13 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     registerIntegrations(app, {
       db: deps.db,
       secretKey: deps.secretKey,
-      notifier: deps.notifier ?? nullNotifier,
+      notifier,
       ...deps.integrations,
     })
   }
   if (deps.githubWebhookSecret) {
     registerGithubWebhook(app, {
-      db: deps.db, notifier: deps.notifier ?? nullNotifier, secret: deps.githubWebhookSecret,
+      db: deps.db, notifier, secret: deps.githubWebhookSecret,
     })
   }
 

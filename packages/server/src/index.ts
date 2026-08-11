@@ -3,7 +3,7 @@ import { makePgDb } from './db/client.js'
 import { migrate } from './db/migrations.js'
 import { makeGithubExchange } from './auth/github.js'
 import { loadSecretKey } from './lib/crypto.js'
-import { nullNotifier } from './events/emit.js'
+import { ClanBroadcaster } from './realtime/broadcaster.js'
 import { makeGithubClient } from './workers/github-poll.js'
 import { makeStripeClient, makeStripeValidate } from './workers/stripe-poll.js'
 import { makeWebhookCreate } from './workers/github-webhook.js'
@@ -21,12 +21,13 @@ const clientSecret = process.env.GITHUB_CLIENT_SECRET
 const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET
 const publicUrl = process.env.PUBLIC_URL ?? 'http://localhost:3000'
 const stripeClient = makeStripeClient()
-const notifier = nullNotifier // Task 10 replaces this with the ClanBroadcaster
+const notifier = new ClanBroadcaster(db)
 
 const app = buildApp({
   db,
   secretKey,
   notifier,
+  broadcaster: notifier,
   githubWebhookSecret: webhookSecret,
   github:
     clientId && clientSecret
