@@ -4,14 +4,18 @@ import { registerGithubAuth, type GithubExchange } from './auth/github.js'
 import { registerProjects } from './projects/routes.js'
 import { registerClans } from './clans/routes.js'
 import { registerCheckins } from './checkins/routes.js'
+import { registerIntegrations, type StripeValidate, type WebhookCreate } from './integrations/routes.js'
 import { listProjectEvents, listClanFeed } from './events/log.js'
 import { userFromRequest } from './auth/sessions.js'
 import { parseId } from './lib/params.js'
+import { type Notifier, nullNotifier } from './events/emit.js'
 
 export interface AppDeps {
   db: Db
   secretKey?: Buffer
+  notifier?: Notifier
   github?: { clientId: string; exchange: GithubExchange }
+  integrations?: { stripeValidate: StripeValidate; webhookCreate: WebhookCreate }
 }
 
 export function buildApp(deps: AppDeps): FastifyInstance {
@@ -21,6 +25,14 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   registerClans(app, { db: deps.db })
   registerCheckins(app, { db: deps.db })
   if (deps.github) registerGithubAuth(app, { db: deps.db, secretKey: deps.secretKey, ...deps.github })
+  if (deps.secretKey && deps.integrations) {
+    registerIntegrations(app, {
+      db: deps.db,
+      secretKey: deps.secretKey,
+      notifier: deps.notifier ?? nullNotifier,
+      ...deps.integrations,
+    })
+  }
 
   app.get<{ Params: { projectId: string } }>('/projects/:projectId/events', async (req, reply) => {
     const user = await userFromRequest(deps.db, req)
