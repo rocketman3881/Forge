@@ -28,3 +28,20 @@ Requires Node 22+ and pnpm.
 | `PUBLIC_URL` | Public base URL used for webhook callbacks (default `http://localhost:3000`) |
 | `PORT` | Listen port (default `3000`) |
 | `FORGE_WORKERS` | Set to `off` to disable background polling |
+
+## Using the CLI
+
+    pnpm --filter forge-cli build
+    node packages/cli/dist/cli.js help
+
+    forge login               # GitHub sign-in via browser
+    forge init                # register this repo as a project + hook shim
+    forge connect stripe <restricted read-only key>
+    forge connect deploy https://your-app.example
+    forge clan create <name>  # or: forge clan join <code>
+    forge                     # live sidebar
+    forge checkin             # weekly three-field check-in
+    forge how sarah revenue2  # show the verified evidence
+
+Set `FORGE_SERVER` to point at your backend (default `http://localhost:3000`).
+Offline, the sidebar shows last-known state with a staleness banner.
