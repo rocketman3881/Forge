@@ -122,7 +122,7 @@ export async function how(api: ApiClient, store: Store, io: Io, user: string, mi
 }
 
 /** `forge refresh`: warm the offline cache (used by the hook shim). */
-export async function refresh(api: ApiClient, store: Store): Promise<void> {
+export async function refresh(api: ApiClient): Promise<void> {
   const projects = await api.projects()
   for (const p of projects.value) await api.projectEvents(p.id)
   const clans = await api.clansMine()

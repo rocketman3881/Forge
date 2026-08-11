@@ -89,7 +89,7 @@ async function main(): Promise<void> {
       return how(api, store, io, args[0], args[1])
     }
     case 'refresh':
-      return refresh(api, store)
+      return refresh(api)
     default:
       io.error(`unknown command "${cmd}"\n`)
       io.log(HELP)
