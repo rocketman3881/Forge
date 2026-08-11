@@ -5,6 +5,7 @@ import { registerProjects } from './projects/routes.js'
 import { registerClans } from './clans/routes.js'
 import { registerCheckins } from './checkins/routes.js'
 import { registerIntegrations, type StripeValidate, type WebhookCreate } from './integrations/routes.js'
+import { registerGithubWebhook } from './workers/github-webhook.js'
 import { listProjectEvents, listClanFeed } from './events/log.js'
 import { userFromRequest } from './auth/sessions.js'
 import { parseId } from './lib/params.js'
@@ -16,6 +17,7 @@ export interface AppDeps {
   notifier?: Notifier
   github?: { clientId: string; exchange: GithubExchange }
   integrations?: { stripeValidate: StripeValidate; webhookCreate: WebhookCreate }
+  githubWebhookSecret?: string
 }
 
 export function buildApp(deps: AppDeps): FastifyInstance {
@@ -31,6 +33,11 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       secretKey: deps.secretKey,
       notifier: deps.notifier ?? nullNotifier,
       ...deps.integrations,
+    })
+  }
+  if (deps.githubWebhookSecret) {
+    registerGithubWebhook(app, {
+      db: deps.db, notifier: deps.notifier ?? nullNotifier, secret: deps.githubWebhookSecret,
     })
   }
 
