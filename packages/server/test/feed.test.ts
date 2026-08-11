@@ -62,3 +62,13 @@ it('project events are owner-only; feed is member-only', async () => {
   })
   expect(forbiddenFeed.statusCode).toBe(403)
 })
+
+it('non-numeric ids return 400, not 500', async () => {
+  const db = await makeTestDb()
+  const app = buildApp({ db })
+  const { token } = await createUserWithToken(db, 1, 'tomr')
+  for (const url of ['/projects/abc/events', '/clans/abc/feed']) {
+    const res = await app.inject({ method: 'GET', url, headers: { authorization: `Bearer ${token}` } })
+    expect(res.statusCode).toBe(400)
+  }
+})

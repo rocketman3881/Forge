@@ -2,8 +2,13 @@ import { randomBytes } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import type { Db } from '../db/client.js'
 import { createSession } from './sessions.js'
+import { encryptSecret } from '../lib/crypto.js'
 
-export type GithubExchange = (code: string) => Promise<{ githubId: number; handle: string }>
+export class GithubExchangeError extends Error {}
+
+export type GithubExchange = (
+  code: string,
+) => Promise<{ githubId: number; handle: string; accessToken: string }>
 
 const STATE_TTL_MS = 10 * 60 * 1000
 
@@ -24,24 +29,33 @@ export function makeGithubExchange(clientId: string, clientSecret: string): Gith
       headers: { accept: 'application/json', 'content-type': 'application/json' },
       body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code }),
     })
-    const { access_token } = (await tokenRes.json()) as { access_token: string }
+    if (!tokenRes.ok) throw new GithubExchangeError(`token exchange failed: ${tokenRes.status}`)
+    const { access_token } = (await tokenRes.json()) as { access_token?: string }
+    if (!access_token) throw new GithubExchangeError('no access_token in exchange response')
     const userRes = await fetch('https://api.github.com/user', {
       headers: { authorization: `Bearer ${access_token}` },
     })
-    const gh = (await userRes.json()) as { id: number; login: string }
-    return { githubId: gh.id, handle: gh.login }
+    if (!userRes.ok) throw new GithubExchangeError(`user fetch failed: ${userRes.status}`)
+    const gh = (await userRes.json()) as { id?: number; login?: string }
+    if (typeof gh.id !== 'number' || !gh.login) throw new GithubExchangeError('malformed user response')
+    return { githubId: gh.id, handle: gh.login, accessToken: access_token }
   }
 }
 
 export function registerGithubAuth(
   app: FastifyInstance,
-  deps: { db: Db; clientId: string; exchange: GithubExchange },
+  deps: { db: Db; secretKey?: Buffer; clientId: string; exchange: GithubExchange },
 ): void {
   const pending = new Map<string, { redirectUri: string; expiresAt: number }>()
 
-  app.get<{ Querystring: { redirect_uri?: string } }>('/auth/github/start', async (req, reply) => {
+  app.get<{ Querystring: { redirect_uri?: string; scope?: string } }>('/auth/github/start', async (req, reply) => {
     if (!req.query.redirect_uri || !isLoopbackRedirect(req.query.redirect_uri)) {
       return reply.code(400).send({ error: 'redirect_uri must be a loopback address' })
+    }
+
+    const scope = req.query.scope ?? ''
+    if (scope !== '' && scope !== 'repo') {
+      return reply.code(400).send({ error: 'scope must be empty or "repo"' })
     }
 
     // Sweep expired entries
@@ -52,6 +66,9 @@ export function registerGithubAuth(
     const url = new URL('https://github.com/login/oauth/authorize')
     url.searchParams.set('client_id', deps.clientId)
     url.searchParams.set('state', state)
+    if (scope === 'repo') {
+      url.searchParams.set('scope', 'repo')
+    }
     return reply.redirect(url.toString(), 302)
   })
 
@@ -66,14 +83,31 @@ export function registerGithubAuth(
       const redirectUri = entry.redirectUri
       pending.delete(req.query.state)
 
-      const gh = await deps.exchange(req.query.code)
+      let gh: Awaited<ReturnType<GithubExchange>>
+      try {
+        gh = await deps.exchange(req.query.code)
+      } catch (err) {
+        if (err instanceof GithubExchangeError) {
+          return reply.code(502).send({ error: 'github exchange failed' })
+        }
+        throw err
+      }
+
       const { rows } = await deps.db.query<{ id: string | number }>(
         `INSERT INTO users (github_id, handle) VALUES ($1, $2)
          ON CONFLICT (github_id) DO UPDATE SET handle = EXCLUDED.handle
          RETURNING id`,
         [gh.githubId, gh.handle],
       )
-      const token = await createSession(deps.db, Number(rows[0]!.id))
+      const userId = Number(rows[0]!.id)
+      const token = await createSession(deps.db, userId)
+      if (deps.secretKey) {
+        await deps.db.query(
+          `INSERT INTO user_integrations (user_id, provider, secret_enc) VALUES ($1, 'github', $2)
+           ON CONFLICT (user_id, provider) DO UPDATE SET secret_enc = EXCLUDED.secret_enc`,
+          [userId, encryptSecret(gh.accessToken, deps.secretKey)],
+        )
+      }
       return reply.redirect(`${redirectUri}#token=${token}`, 302)
     },
   )

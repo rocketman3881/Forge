@@ -25,3 +25,14 @@ it('rejects verticals outside build/ship/revenue', async () => {
     ),
   ).rejects.toThrow()
 })
+
+it('integration and probe tables exist', async () => {
+  const db = await makeTestDb()
+  await db.query(`INSERT INTO users (github_id, handle) VALUES (1, 'u')`)
+  await db.query(`INSERT INTO projects (owner_id, name) VALUES (1, 'p')`)
+  await db.query(`INSERT INTO user_integrations (user_id, provider, secret_enc) VALUES (1, 'github', 'x')`)
+  await db.query(
+    `INSERT INTO project_integrations (project_id, provider, secret_enc) SELECT id, 'stripe', 'y' FROM projects LIMIT 1`,
+  )
+  await db.query(`INSERT INTO probe_results (project_id, ok) SELECT id, true FROM projects LIMIT 1`)
+})

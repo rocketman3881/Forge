@@ -19,17 +19,21 @@ export async function createSession(db: Db, userId: number, ttlMs = 30 * 24 * 36
   return token
 }
 
+export async function userFromToken(db: Db, token: string): Promise<AuthedUser | null> {
+  const { rows } = await db.query<{ id: string | number; handle: string }>(
+    `SELECT u.id, u.handle FROM sessions s JOIN users u ON u.id = s.user_id
+     WHERE s.token_hash = $1 AND s.expires_at > now()`,
+    [hashToken(token)],
+  )
+  const row = rows[0]
+  return row ? { id: Number(row.id), handle: row.handle } : null
+}
+
 export async function userFromRequest(
   db: Db,
   req: { headers: { authorization?: string } },
 ): Promise<AuthedUser | null> {
   const auth = req.headers.authorization
   if (!auth?.startsWith('Bearer ')) return null
-  const { rows } = await db.query<{ id: string | number; handle: string }>(
-    `SELECT u.id, u.handle FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE s.token_hash = $1 AND s.expires_at > now()`,
-    [hashToken(auth.slice(7))],
-  )
-  const row = rows[0]
-  return row ? { id: Number(row.id), handle: row.handle } : null
+  return userFromToken(db, auth.slice(7))
 }
