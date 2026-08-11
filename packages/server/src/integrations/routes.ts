@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import type { Db } from '../db/client.js'
 import { userFromRequest } from '../auth/sessions.js'
@@ -121,6 +122,30 @@ export function registerIntegrations(app: FastifyInstance, deps: Deps): void {
         req.body.deployUrl, own.projectId,
       ])
       return reply.send({ ok: true })
+    },
+  )
+
+  app.post<{ Params: { projectId: string }; Body: { domain: string } }>(
+    '/projects/:projectId/domain',
+    {
+      schema: {
+        body: {
+          type: 'object', required: ['domain'],
+          properties: { domain: { type: 'string', minLength: 4, maxLength: 253, pattern: '^[a-z0-9.-]+$' } },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (req, reply) => {
+      const own = await ownedProject(deps, req)
+      if (own.status !== 200) return reply.code(own.status).send({ error: 'rejected' })
+      const token = `forge-verify=${randomBytes(16).toString('base64url')}`
+      await deps.db.query(
+        `INSERT INTO domain_challenges (project_id, domain, token) VALUES ($1, $2, $3)
+         ON CONFLICT (project_id) DO UPDATE SET domain = EXCLUDED.domain, token = EXCLUDED.token`,
+        [own.projectId, req.body.domain, token],
+      )
+      return reply.send({ record: `_forge.${req.body.domain}`, value: token })
     },
   )
 }
