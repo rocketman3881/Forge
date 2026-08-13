@@ -27,10 +27,11 @@ it('renders ladders, clan check-ins, and feed', () => {
     />,
   )
   const frame = lastFrame()!
-  expect(frame).toContain('⚒ FORGE')
+  expect(frame).toContain('╔═╗╔═╗╦═╗╔═╗╔═╗')
+  expect(frame).toContain('⚒ verified progress')
   expect(frame).toContain('launchpage')
-  expect(frame).toContain('▓▓▓░░ 3/5')
-  expect(frame).toContain('▓▓░░░ 2/5')
+  expect(frame).toContain('███▁▁ 3/5')
+  expect(frame).toContain('██▁▁▁ 2/5')
   expect(frame).toContain('1/2 this week')
   expect(frame).toContain('tomr · launchpage · revenue 2')
   expect(frame).not.toContain('offline')

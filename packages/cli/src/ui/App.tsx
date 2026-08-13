@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Box, useStdout } from 'ink'
 import WebSocket from 'ws'
 import type { ApiClient, FeedEvent } from '../api.js'
 import { Sidebar, type SidebarProps } from './Sidebar.js'
@@ -11,10 +12,20 @@ interface AppProps {
 }
 
 export function App({ api, serverUrl, token, pollMs = 60_000 }: AppProps): React.JSX.Element {
+  const { stdout } = useStdout()
+  const [columns, setColumns] = useState(stdout.columns ?? 80)
   const [state, setState] = useState<SidebarProps>({
     projects: [], eventsByProject: {}, clan: null, checkin: null,
     feed: [], staleSince: null, celebration: null,
   })
+
+  useEffect(() => {
+    const onResize = () => setColumns(stdout.columns ?? 80)
+    stdout.on('resize', onResize)
+    return () => {
+      stdout.off('resize', onResize)
+    }
+  }, [stdout])
 
   useEffect(() => {
     let alive = true
@@ -67,5 +78,9 @@ export function App({ api, serverUrl, token, pollMs = 60_000 }: AppProps): React
     return () => sock.close()
   }, [state.clan?.id, serverUrl, token])
 
-  return <Sidebar {...state} />
+  return (
+    <Box width={columns} justifyContent="flex-end">
+      <Sidebar {...state} />
+    </Box>
+  )
 }

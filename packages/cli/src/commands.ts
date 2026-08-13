@@ -1,7 +1,7 @@
 import { writeFileSync, chmodSync, existsSync, mkdirSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
-import type { ApiClient, FeedEvent } from './api.js'
+import type { ApiClient, CheckinStatus, FeedEvent, MilestoneEvent, Project } from './api.js'
 import type { Store } from './store.js'
 
 export interface Io {
@@ -119,6 +119,42 @@ export async function how(api: ApiClient, store: Store, io: Io, user: string, mi
     return
   }
   io.log(formatEvidence(hit))
+}
+
+/**
+ * `forge status`: one-line cache-only summary for embedding in other tools
+ * (e.g. Claude Code's statusLine). Never hits the network or prompts login.
+ */
+export function status(store: Store, io: Io): void {
+  const projects = store.getCache<Project[]>('projects')?.value ?? []
+  const config = store.getConfig()
+  const project = projects.find((p) => p.id === config.projectId) ?? projects[0]
+  if (!project) {
+    io.log('⚒ forge: no cached state — run `forge refresh`')
+    return
+  }
+
+  const events = store.getCache<MilestoneEvent[]>(`events-${project.id}`)?.value ?? []
+  const top = { build: 0, ship: 0, revenue: 0 }
+  for (const e of events) {
+    if (e.rung > top[e.vertical]) top[e.vertical] = e.rung
+  }
+  const bar = (raw: number, color: string) => {
+    const rung = Math.min(5, Math.max(0, raw)) // cache is untrusted json; never let repeat() throw
+    return `\u001b[${color}m${'█'.repeat(rung)}\u001b[2m${'▁'.repeat(5 - rung)}\u001b[0m`
+  }
+  const parts = [
+    `⚒ ${project.name}`,
+    `build ${bar(top.build, '36')}`,
+    `ship ${bar(top.ship, '35')}`,
+    `rev ${bar(top.revenue, '32')}`,
+  ]
+
+  const clanId = config.clanId
+  const checkin = clanId ? store.getCache<CheckinStatus>(`checkin-${clanId}`)?.value : null
+  if (checkin && checkin.total > 0) parts.push(`clan ${checkin.completed}/${checkin.total}`)
+
+  io.log(parts.join('  '))
 }
 
 /** `forge refresh`: warm the offline cache (used by the hook shim). */

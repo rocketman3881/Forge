@@ -6,7 +6,7 @@ import { ApiClient } from './api.js'
 import { login } from './auth.js'
 import { App } from './ui/App.js'
 import { CheckinForm } from './ui/CheckinForm.js'
-import { init, connect, clan, how, refresh } from './commands.js'
+import { init, connect, clan, how, refresh, status } from './commands.js'
 
 const HELP = `forge — verified founder accountability, in your terminal
 
@@ -21,6 +21,7 @@ const HELP = `forge — verified founder accountability, in your terminal
   forge checkin             weekly three-field check-in
   forge how <user> <milestone>   e.g. forge how sarah revenue2
   forge refresh             warm the offline cache
+  forge status              one-line summary from cache (for statuslines)
 
   FORGE_SERVER overrides the backend url (default http://localhost:3000)
 `
@@ -37,6 +38,12 @@ async function main(): Promise<void> {
 
   if (cmd === 'help' || cmd === '--help' || cmd === '-h') {
     io.log(HELP)
+    return
+  }
+
+  if (cmd === 'status') {
+    // cache-only, no network, no login — safe for statusline scripts
+    status(store, io)
     return
   }
 
@@ -58,7 +65,14 @@ async function main(): Promise<void> {
 
   switch (cmd) {
     case undefined: {
-      render(React.createElement(App, { api, serverUrl, token }))
+      // Alternate screen buffer: sidebar renders from the top of the terminal
+      // (top-right via the App layout) and scrollback is restored on exit.
+      if (process.stdout.isTTY) {
+        process.stdout.write('\u001b[?1049h\u001b[H')
+        process.once('exit', () => process.stdout.write('\u001b[?1049l'))
+      }
+      const instance = render(React.createElement(App, { api, serverUrl, token }))
+      await instance.waitUntilExit()
       return
     }
     case 'init':

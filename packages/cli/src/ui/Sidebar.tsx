@@ -5,6 +5,25 @@ import type { Clan, CheckinStatus, FeedEvent, MilestoneEvent, Project } from '..
 const VERTICALS = ['build', 'ship', 'revenue'] as const
 const MAX_RUNG = 5
 
+const BANNER = [
+  '╔═╗╔═╗╦═╗╔═╗╔═╗',
+  '╠╣ ║ ║╠╦╝║ ╦║╣ ',
+  '╚  ╚═╝╩╚═╚═╝╚═╝',
+] as const
+
+export function Banner(): React.JSX.Element {
+  return (
+    <Box flexDirection="column">
+      {BANNER.map((line, i) => (
+        <Text key={i} bold color="yellow">
+          {line}
+          {i === BANNER.length - 1 && <Text dimColor>  ⚒ verified progress</Text>}
+        </Text>
+      ))}
+    </Box>
+  )
+}
+
 const COLORS: Record<(typeof VERTICALS)[number], string> = {
   build: 'cyan',
   ship: 'magenta',
@@ -14,9 +33,10 @@ const COLORS: Record<(typeof VERTICALS)[number], string> = {
 export function Ladder({ rung, color }: { rung: number; color: string }): React.JSX.Element {
   return (
     <Text>
-      <Text color={color}>{'▓'.repeat(rung)}</Text>
-      <Text dimColor>{'░'.repeat(MAX_RUNG - rung)}</Text>
+      <Text color={color}>{'█'.repeat(rung)}</Text>
+      <Text dimColor>{'▁'.repeat(MAX_RUNG - rung)}</Text>
       <Text dimColor> {rung}/{MAX_RUNG}</Text>
+      {rung === MAX_RUNG && <Text color="yellow"> ★</Text>}
     </Text>
   )
 }
@@ -46,29 +66,53 @@ export interface SidebarProps {
   celebration: FeedEvent | null
 }
 
+function SectionRule({ label }: { label: string }): React.JSX.Element {
+  return (
+    <Box marginTop={1}>
+      <Text dimColor>
+        {'── '}
+        {label}
+        {' '}
+        {'─'.repeat(Math.max(2, 24 - label.length))}
+      </Text>
+    </Box>
+  )
+}
+
 export function Sidebar(props: SidebarProps): React.JSX.Element {
   return (
-    <Box flexDirection="column" paddingX={1}>
-      <Text bold color="yellow">⚒ FORGE</Text>
+    <Box flexDirection="column" paddingX={2} paddingY={1} borderStyle="round" borderColor="yellow" borderDimColor>
+      <Banner />
       {props.staleSince && (
-        <Text color="red">offline — showing state from {timeAgo(props.staleSince)}</Text>
+        <Box marginTop={1}>
+          <Text color="red">● offline — showing state from {timeAgo(props.staleSince)}</Text>
+        </Box>
       )}
       {props.celebration && (
-        <Text backgroundColor="yellow" color="black">
-          {' '}🎉 {props.celebration.handle} hit {props.celebration.vertical} rung {props.celebration.rung}{' '}
-        </Text>
+        <Box marginTop={1}>
+          <Text backgroundColor="yellow" color="black" bold>
+            {' '}🎉 {props.celebration.handle} hit {props.celebration.vertical} rung {props.celebration.rung}{' '}
+          </Text>
+        </Box>
       )}
 
-      {props.projects.length === 0 && <Text dimColor>no projects — run `forge init`</Text>}
+      {props.projects.length === 0 && (
+        <Box marginTop={1}>
+          <Text dimColor>no projects — run `forge init`</Text>
+        </Box>
+      )}
       {props.projects.map((p) => {
         const rungs = topRungs(props.eventsByProject[p.id] ?? [])
         return (
           <Box key={p.id} flexDirection="column" marginTop={1}>
-            <Text bold>{p.name}</Text>
+            <Text>
+              <Text color="yellow">◍ </Text>
+              <Text bold>{p.name}</Text>
+            </Text>
             {VERTICALS.map((v) => (
-              <Box key={v}>
+              <Box key={v} paddingLeft={2}>
                 <Box width={9}>
-                  <Text dimColor>{v}</Text>
+                  <Text color={COLORS[v]}>{v}</Text>
                 </Box>
                 <Ladder rung={rungs[v]} color={COLORS[v]} />
               </Box>
@@ -78,20 +122,26 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
       })}
 
       {props.clan && (
-        <Box flexDirection="column" marginTop={1}>
-          <Text bold>{props.clan.name}</Text>
-          <Text>
-            check-ins:{' '}
-            <Text color={props.checkin && props.checkin.completed >= props.checkin.total ? 'green' : 'yellow'}>
-              {props.checkin?.completed ?? 0}/{props.checkin?.total ?? props.clan.members.length}
-            </Text>{' '}
-            this week
-          </Text>
-          {props.feed.slice(0, 5).map((e) => (
-            <Text key={e.id} dimColor>
-              {e.handle} · {e.projectName} · {e.vertical} {e.rung} · {timeAgo(e.verifiedAt)}
+        <Box flexDirection="column">
+          <SectionRule label={`clan: ${props.clan.name}`} />
+          <Box paddingLeft={2} flexDirection="column">
+            <Text>
+              <Text dimColor>check-ins </Text>
+              <Text color={props.checkin && props.checkin.completed >= props.checkin.total ? 'green' : 'yellow'} bold>
+                {props.checkin?.completed ?? 0}/{props.checkin?.total ?? props.clan.members.length}
+              </Text>
+              <Text dimColor> this week</Text>
             </Text>
-          ))}
+            {props.feed.slice(0, 5).map((e) => (
+              <Text key={e.id}>
+                <Text color="yellow">⚡ </Text>
+                <Text>{e.handle}</Text>
+                <Text dimColor> · {e.projectName} · </Text>
+                <Text color={COLORS[e.vertical]}>{e.vertical} {e.rung}</Text>
+                <Text dimColor> · {timeAgo(e.verifiedAt)}</Text>
+              </Text>
+            ))}
+          </Box>
         </Box>
       )}
     </Box>
