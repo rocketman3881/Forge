@@ -1,7 +1,7 @@
 import { writeFileSync, chmodSync, existsSync, mkdirSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
-import type { ApiClient, CheckinStatus, FeedEvent, MilestoneEvent, Project } from './api.js'
+import type { ApiClient, CheckinStatus, Clan, FeedEvent, MilestoneEvent, Project } from './api.js'
 import type { Store } from './store.js'
 
 export interface Io {
@@ -134,27 +134,50 @@ export function status(store: Store, io: Io): void {
     return
   }
 
-  const events = store.getCache<MilestoneEvent[]>(`events-${project.id}`)?.value ?? []
-  const top = { build: 0, ship: 0, revenue: 0 }
-  for (const e of events) {
-    if (e.rung > top[e.vertical]) top[e.vertical] = e.rung
-  }
-  const bar = (raw: number, color: string) => {
-    const rung = Math.min(5, Math.max(0, raw)) // cache is untrusted json; never let repeat() throw
-    return `\u001b[${color}m${'█'.repeat(rung)}\u001b[2m${'▁'.repeat(5 - rung)}\u001b[0m`
-  }
-  const parts = [
-    `⚒ ${project.name}`,
-    `build ${bar(top.build, '36')}`,
-    `ship ${bar(top.ship, '35')}`,
-    `rev ${bar(top.revenue, '32')}`,
+  // Open-ended climb markers, not a bounded progress bar: a business is never
+  // "done", so show the height reached (▲n) instead of distance-to-full.
+  const dim = (s: string) => `\u001b[2m${s}\u001b[0m`
+  const paint = (s: string, color: string) => `\u001b[${color}m${s}\u001b[0m`
+  const V: Array<[MilestoneEvent['vertical'], string, string]> = [
+    ['build', 'b', '36'],
+    ['ship', 's', '35'],
+    ['revenue', 'r', '32'],
   ]
+  const tops = (events: MilestoneEvent[]) => {
+    const top = { build: 0, ship: 0, revenue: 0 }
+    for (const e of events) {
+      if (e.rung > top[e.vertical]) top[e.vertical] = e.rung
+    }
+    return top
+  }
+  const climb = (top: Record<MilestoneEvent['vertical'], number>, long = false) =>
+    V.map(([v, short, color]) => {
+      const label = long ? v : short
+      return top[v] > 0 ? `${label} ${paint(`▲${top[v]}`, color)}` : dim(`${label} ·`)
+    }).join('  ')
+
+  const events = store.getCache<MilestoneEvent[]>(`events-${project.id}`)?.value ?? []
+  const parts = [`⚒ ${project.name}`, climb(tops(events), true)]
 
   const clanId = config.clanId
-  const checkin = clanId ? store.getCache<CheckinStatus>(`checkin-${clanId}`)?.value : null
-  if (checkin && checkin.total > 0) parts.push(`clan ${checkin.completed}/${checkin.total}`)
+  const clan = clanId
+    ? (store.getCache<Clan[]>('clans')?.value ?? []).find((c) => c.id === clanId)
+    : null
+  if (clan) {
+    const checkin = store.getCache<CheckinStatus>(`checkin-${clanId}`)?.value
+    if (checkin && checkin.total > 0) parts.push(`clan ${checkin.completed}/${checkin.total}`)
+    const feed = store.getCache<FeedEvent[]>(`feed-${clanId}`)?.value ?? []
+    const byMember = new Map<string, FeedEvent[]>()
+    for (const e of feed) {
+      byMember.set(e.handle, [...(byMember.get(e.handle) ?? []), e])
+    }
+    for (const m of clan.members.slice(0, 4)) {
+      const theirs = byMember.get(m.handle)
+      parts.push(`${m.handle} ${theirs ? climb(tops(theirs)) : dim('—')}`)
+    }
+  }
 
-  io.log(parts.join('  '))
+  io.log(parts.join(dim('  │  ')))
 }
 
 /** `forge refresh`: warm the offline cache (used by the hook shim). */
