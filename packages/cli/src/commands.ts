@@ -146,7 +146,8 @@ export function status(store: Store, io: Io): void {
   const tops = (events: MilestoneEvent[]) => {
     const top = { build: 0, ship: 0, revenue: 0 }
     for (const e of events) {
-      if (e.rung > top[e.vertical]) top[e.vertical] = e.rung
+      const rung = Number.isFinite(e.rung) ? Math.max(0, Math.trunc(e.rung)) : 0 // untrusted cache
+      if (rung > (top[e.vertical] ?? Infinity)) top[e.vertical] = rung
     }
     return top
   }
