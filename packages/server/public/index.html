@@ -23,12 +23,10 @@
     --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     --sans: "Inter", system-ui, -apple-system, sans-serif;
     --serif: "Instrument Serif", Georgia, serif;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-  }
   body {
     margin: 0;
     background: var(--bg);
@@ -41,7 +39,7 @@
   .skip {
     position: absolute; inset-inline-start: -999px; top: 0;
     background: var(--ember); color: #1a1a1a; padding: .5rem 1rem;
-    font-weight: 600; border-radius: 0 0 .375rem .375rem; z-index: 10;
+    font-weight: 600; border-radius: 0 0 .375rem .375rem; z-index: 30;
   }
   .skip:focus { inset-inline-start: 1.5rem; }
   a { color: var(--ember); text-underline-offset: .2em; }
@@ -50,47 +48,93 @@
   }
 
   header.site {
-    border-bottom: 1px solid var(--border);
-    padding-block: 1rem;
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-soft);
+    padding-block: .875rem;
   }
   header.site .rail { display: flex; align-items: center; justify-content: space-between; }
-  .wordmark { font-family: var(--mono); font-weight: 700; font-size: 1.125rem; color: var(--text); text-decoration: none; }
+  .wordmark {
+    font-family: var(--mono); font-weight: 700; font-size: 1.125rem;
+    color: var(--text); text-decoration: none;
+    display: inline-flex; align-items: center; gap: .5rem;
+  }
+  .wordmark .spark { color: var(--ember); }
   .wordmark:hover { color: var(--ember); }
-  nav.site a { color: var(--muted); text-decoration: none; margin-inline-start: 1.5rem; font-size: .9375rem; }
+  nav.site { display: flex; align-items: center; }
+  nav.site a { color: var(--muted); text-decoration: none; margin-inline-start: 1.5rem; font-size: .9375rem; transition: color 120ms ease; }
   nav.site a:hover { color: var(--text); text-decoration: underline; }
+  .nav-cta {
+    margin-inline-start: 1.5rem;
+    font-size: .875rem; font-weight: 600; text-decoration: none;
+    background: var(--ember); color: #1a1a1a !important;
+    padding: .4375rem .875rem; border-radius: .5rem;
+    transition: background-color 120ms ease;
+  }
+  .nav-cta:hover { background: var(--ember-press); text-decoration: none !important; }
 
   .hero {
-    padding-block: 5.5rem 4.5rem;
+    padding-block: 6.5rem 5.5rem;
     position: relative;
+    overflow: hidden;
     background:
-      radial-gradient(42rem 26rem at 72% 0%, rgba(240, 180, 41, 0.07), transparent 65%),
+      radial-gradient(48rem 30rem at 70% -5%, rgba(240, 180, 41, 0.09), transparent 62%),
+      radial-gradient(30rem 22rem at 10% 100%, rgba(118, 227, 234, 0.04), transparent 70%),
       linear-gradient(var(--border-soft) 1px, transparent 1px),
       linear-gradient(90deg, var(--border-soft) 1px, transparent 1px);
-    background-size: auto, 3.5rem 3.5rem, 3.5rem 3.5rem;
-    background-position: 0 0, 50% 0, 50% 0;
+    background-size: auto, auto, 3.5rem 3.5rem, 3.5rem 3.5rem;
+    background-position: 0 0, 0 0, 50% 0, 50% 0;
     border-bottom: 1px solid var(--border-soft);
   }
+  .hero::after {
+    content: "";
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, transparent 55%, var(--bg));
+  }
+  .hero .rail { position: relative; z-index: 1; }
+  .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 3rem; align-items: center; }
+  @media (max-width: 56rem) { .hero-grid { grid-template-columns: 1fr; } }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: .5rem;
+    font-family: var(--mono); font-size: .8125rem; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 2rem;
+    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    padding: .375rem .875rem; margin-block-end: 1.5rem;
+  }
+  .eyebrow .pulse {
+    width: .5rem; height: .5rem; border-radius: 50%; background: var(--ok);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(86, 211, 100, 0.5); }
+    50% { box-shadow: 0 0 0 .375rem rgba(86, 211, 100, 0); }
+  }
   .hero h1 {
-    font-size: clamp(2.375rem, 6vw, 4rem);
-    line-height: 1.08; letter-spacing: -0.025em;
-    margin: 0 0 1.25rem; max-width: 48rem; font-weight: 700;
+    font-size: clamp(2.5rem, 6.5vw, 4.5rem);
+    line-height: 1.05; letter-spacing: -0.028em;
+    margin: 0 0 1.375rem; max-width: 50rem; font-weight: 700;
   }
   .accent {
     font-family: var(--serif); font-style: italic; font-weight: 400;
     color: var(--ember); letter-spacing: 0;
   }
-  .hero p.lede { font-size: 1.25rem; color: var(--muted); max-width: 40rem; margin: 0 0 2.25rem; }
+  .hero p.lede { font-size: 1.3125rem; color: var(--muted); max-width: 40rem; margin: 0 0 2.5rem; }
   .hero .claim { color: var(--text); font-weight: 600; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
 
   .term {
     background: linear-gradient(180deg, var(--surface-2), var(--surface));
     border: 1px solid var(--border);
-    border-radius: .75rem;
+    border-radius: .875rem;
     font-family: var(--mono);
     font-size: .875rem;
     line-height: 1.7;
     overflow-x: auto;
-    box-shadow: 0 1.5rem 3rem -1.5rem rgba(0, 0, 0, 0.6);
+    box-shadow:
+      0 0 0 1px rgba(240, 180, 41, 0.05),
+      0 2rem 4rem -1.5rem rgba(0, 0, 0, 0.7);
   }
   .term .bar-title {
     display: flex; gap: .5rem; align-items: center;
@@ -102,12 +146,20 @@
     width: .5rem; height: .5rem; border-radius: 50%;
     background: var(--ok);
   }
-  .term pre { margin: 0; padding: 1rem 1.25rem; }
+  .term pre { margin: 0; padding: 1.125rem 1.375rem; }
   .dim { color: #6e7681; }
   .cyan { color: #76e3ea; }
   .magenta { color: #d2a8ff; }
   .green { color: var(--ok); }
   .amber { color: var(--ember); }
+  .cursor {
+    display: inline-block; width: .55em; height: 1.1em;
+    background: var(--ember); vertical-align: text-bottom;
+    animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .feed-line { opacity: 0; }
+  .feed-line.shown { opacity: 1; transition: opacity 400ms var(--ease); }
 
   .cmd {
     display: flex; align-items: center; gap: .75rem;
@@ -115,11 +167,11 @@
     border-radius: .625rem; padding: .625rem .625rem .625rem 1rem;
     font-family: var(--mono); font-size: .9375rem;
     max-width: 40rem;
-    transition: border-color 140ms ease;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
   }
-  .cmd:hover { border-color: #39414d; }
+  .cmd:hover { border-color: #39414d; box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.05); }
   .cmd code { flex: 1; overflow-x: auto; white-space: nowrap; }
-  .cmd .dollar { color: var(--muted); user-select: none; }
+  .cmd .dollar { color: var(--ember); user-select: none; }
   .copy {
     font-family: var(--sans); font-size: .8125rem; font-weight: 600;
     background: var(--ember); color: #1a1a1a; border: none;
@@ -130,17 +182,37 @@
   .copy:active { background: #c08c0f; }
   .copy[data-done="true"] { background: var(--ok); }
 
-  section { padding-block: 4.5rem; border-top: 1px solid var(--border-soft); }
-  h2 { font-size: clamp(1.75rem, 3.5vw, 2.375rem); letter-spacing: -0.02em; line-height: 1.15; margin: 0 0 .625rem; }
+  section { padding-block: 5.5rem; border-top: 1px solid var(--border-soft); position: relative; }
+  h2 { font-size: clamp(1.875rem, 4vw, 2.75rem); letter-spacing: -0.022em; line-height: 1.12; margin: 0 0 .75rem; }
   .kicker {
     font-family: var(--mono); font-size: .8125rem; color: var(--ember);
-    margin: 0 0 .875rem; display: flex; align-items: center; gap: .625rem;
+    margin: 0 0 1rem; display: flex; align-items: center; gap: .625rem;
   }
   .kicker::after { content: ""; height: 1px; width: 2.5rem; background: var(--border); }
-  section > .rail > p { color: var(--muted); max-width: 42rem; }
+  section > .rail > p { color: var(--muted); max-width: 42rem; font-size: 1.125rem; }
 
-  ol.steps { list-style: none; counter-reset: step; margin: 2rem 0 0; padding: 0; display: grid; gap: 2rem; }
-  ol.steps > li { counter-increment: step; display: grid; grid-template-columns: 2.5rem 1fr; gap: 1rem; }
+  html.js .reveal:not(.shown) { opacity: 0; transform: translateY(1.25rem); }
+  .reveal.shown {
+    opacity: 1; transform: none;
+    transition: opacity 600ms var(--ease), transform 600ms var(--ease);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; }
+    .feed-line { opacity: 1; }
+    .cursor, .eyebrow .pulse { animation: none; }
+  }
+
+  ol.steps { list-style: none; counter-reset: step; margin: 2.75rem 0 0; padding: 0; display: grid; gap: 1rem; }
+  ol.steps > li {
+    counter-increment: step;
+    display: grid; grid-template-columns: 2.5rem 1fr; gap: 1.25rem;
+    background: color-mix(in srgb, var(--surface) 55%, transparent);
+    border: 1px solid var(--border-soft); border-radius: .875rem;
+    padding: 1.375rem 1.5rem;
+    transition: border-color 160ms ease, background-color 160ms ease;
+  }
+  ol.steps > li:hover { border-color: var(--border); background: var(--surface); }
   ol.steps > li::before {
     content: "0" counter(step);
     font-family: var(--mono); font-weight: 400; font-size: .8125rem; color: var(--ember);
@@ -148,20 +220,49 @@
     background: var(--surface);
     width: 2.375rem; height: 2.375rem; display: grid; place-items: center;
   }
-  ol.steps h3 { margin: 0 0 .25rem; font-size: 1.125rem; }
-  ol.steps p { margin: 0 0 .75rem; color: var(--muted); }
+  ol.steps h3 { margin: 0 0 .25rem; font-size: 1.1875rem; letter-spacing: -0.01em; }
+  ol.steps p { margin: 0 0 .875rem; color: var(--muted); }
 
-  table { border-collapse: collapse; width: 100%; max-width: 46rem; margin-top: 1rem; font-size: .9375rem; }
-  caption { text-align: start; font-weight: 600; padding-block: .5rem; font-size: 1.0625rem; }
-  th, td { text-align: start; padding: .5rem .75rem; border-bottom: 1px solid var(--border); }
-  th { color: var(--muted); font-weight: 600; font-size: .8125rem; text-transform: uppercase; letter-spacing: .04em; }
-  td:first-child { font-family: var(--mono); color: var(--ember); }
-  td:last-child { color: var(--muted); }
+  .ladders { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 2.75rem; }
+  @media (max-width: 64rem) { .ladders { grid-template-columns: 1fr; } }
+  .ladder {
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    border: 1px solid var(--border-soft); border-radius: .875rem;
+    padding: 1.5rem;
+    display: flex; flex-direction: column; gap: 1rem;
+    transition: border-color 160ms ease;
+  }
+  .ladder:hover { border-color: var(--border); }
+  .ladder header { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; border: 0; padding: 0; }
+  .ladder h3 { margin: 0; font-size: 1.25rem; letter-spacing: -0.01em; }
+  .ladder .via { font-family: var(--mono); font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .ladder .bar { font-family: var(--mono); font-size: .9375rem; letter-spacing: .1em; }
+  .ladder ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .625rem; }
+  .ladder li {
+    display: grid; grid-template-columns: 1.5rem 1fr; gap: .625rem; align-items: baseline;
+    font-size: .9375rem; color: var(--muted);
+    padding-block-end: .625rem; border-bottom: 1px solid var(--border-soft);
+  }
+  .ladder li:last-child { border-bottom: 0; padding-block-end: 0; }
+  .ladder li .n { font-family: var(--mono); font-size: .75rem; color: var(--ember); }
+  .ladder li strong { color: var(--text); font-weight: 600; display: block; }
+  .ladder li .proof { font-size: .8125rem; }
+  .fineprint { margin-top: 2rem; color: var(--muted); max-width: 42rem; }
 
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; align-items: start; }
-  @media (max-width: 52rem) { .grid2 { grid-template-columns: 1fr; } }
+  .cta {
+    text-align: center;
+    background:
+      radial-gradient(40rem 20rem at 50% 120%, rgba(240, 180, 41, 0.08), transparent 65%);
+  }
+  .cta h2 { max-width: 34rem; margin-inline: auto; }
+  .cta > .rail > p { margin-inline: auto; }
+  .cta .cmd { margin: 2.25rem auto 0; text-align: start; }
 
-  footer.site { border-top: 1px solid var(--border); padding-block: 2rem 3rem; color: var(--muted); font-size: .9375rem; }
+  footer.site {
+    border-top: 1px solid var(--border-soft); padding-block: 2.5rem 3.5rem;
+    color: var(--muted); font-size: .9375rem;
+  }
+  footer.site .rail { display: flex; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; align-items: baseline; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 </style>
 </head>
@@ -169,26 +270,30 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="site">
   <div class="rail">
-    <a class="wordmark" href="/">forge</a>
+    <a class="wordmark" href="/"><span class="spark" aria-hidden="true">⚒</span>forge</a>
     <nav class="site" aria-label="Site">
       <a href="#install">Install</a>
       <a href="#clans">Clans</a>
       <a href="#milestones">Milestones</a>
       <a href="https://github.com/rocketman3881/forge">GitHub</a>
+      <a class="nav-cta" href="#install">Get started</a>
     </nav>
   </div>
 </header>
 
 <main id="main">
   <div class="hero">
-    <div class="rail grid2">
+    <div class="rail hero-grid">
       <div>
+        <p class="eyebrow"><span class="pulse" aria-hidden="true"></span>verified milestones, live in your clan's terminals</p>
         <h1>Your clan sees what you <span class="accent">actually</span> shipped.</h1>
         <p class="lede"><span class="claim">Forge is a terminal sidebar for small groups of founders.</span> Progress bars only move when a milestone is verified through GitHub, Stripe, or a live uptime probe. Nothing is self-reported.</p>
-        <div class="cmd">
-          <span class="dollar" aria-hidden="true">$</span>
-          <code tabindex="0" id="install-cmd">curl -fsSL __FORGE_SERVER__/install.sh | sh</code>
-          <button class="copy" type="button" data-copy="install-cmd">Copy</button>
+        <div class="hero-actions">
+          <div class="cmd">
+            <span class="dollar" aria-hidden="true">$</span>
+            <code tabindex="0" id="install-cmd">curl -fsSL __FORGE_SERVER__/install.sh | sh</code>
+            <button class="copy" type="button" data-copy="install-cmd">Copy</button>
+          </div>
         </div>
       </div>
       <div class="term" role="img" aria-label="The Forge sidebar in a terminal: three progress bars for build, ship, and revenue, then a clan feed showing sarah reached revenue rung 2, first dollar, verified via Stripe.">
@@ -204,40 +309,42 @@ revenue  <span class="green">██</span><span class="dim">▁▁▁</span>  <s
   marcus  ship <span class="magenta">██</span><span class="dim">▁▁▁</span>
   you     build <span class="cyan">███</span><span class="dim">▁▁</span>
 
-<span class="dim">sarah reached revenue rung 2
-  verified via stripe: ch_3Ml…</span></pre>
+<span class="feed-line" id="feed1"><span class="dim">sarah reached revenue rung 2</span></span>
+<span class="feed-line" id="feed2"><span class="dim">  verified via stripe: ch_3Ml…</span></span> <span class="cursor" aria-hidden="true"></span></pre>
       </div>
     </div>
   </div>
 
   <section id="install">
     <div class="rail">
-      <p class="kicker">01 · quickstart</p>
-      <h2>Up and running in <span class="accent">four</span> commands</h2>
-      <p>The installer clones the repo, builds the CLI, and puts <code>forge</code> on your PATH. Requires Node 22+, pnpm, and git.</p>
+      <div class="reveal">
+        <p class="kicker">01 · quickstart</p>
+        <h2>Up and running in <span class="accent">four</span> commands</h2>
+        <p>The installer clones the repo, builds the CLI, and puts <code>forge</code> on your PATH. Requires Node 22+, pnpm, and git.</p>
+      </div>
       <ol class="steps">
-        <li>
+        <li class="reveal">
           <div>
             <h3>Install the CLI</h3>
             <p>One line. Inspect it first if you like: it only touches <code>~/.forge</code> and <code>~/.local/bin</code>.</p>
             <div class="cmd"><span class="dollar" aria-hidden="true">$</span><code tabindex="0" id="c1">curl -fsSL __FORGE_SERVER__/install.sh | sh</code><button class="copy" type="button" data-copy="c1">Copy</button></div>
           </div>
         </li>
-        <li>
+        <li class="reveal">
           <div>
             <h3>Sign in with GitHub</h3>
             <p>Opens your browser once. Forge asks for repo access so it can verify merges and CI, never to write code.</p>
             <div class="cmd"><span class="dollar" aria-hidden="true">$</span><code tabindex="0" id="c2">forge login</code><button class="copy" type="button" data-copy="c2">Copy</button></div>
           </div>
         </li>
-        <li>
+        <li class="reveal">
           <div>
             <h3>Register your project</h3>
             <p>Run inside your project repo. Links the GitHub origin and installs a post-commit hook that keeps the sidebar warm.</p>
             <div class="cmd"><span class="dollar" aria-hidden="true">$</span><code tabindex="0" id="c3">forge init</code><button class="copy" type="button" data-copy="c3">Copy</button></div>
           </div>
         </li>
-        <li>
+        <li class="reveal">
           <div>
             <h3>Open the sidebar</h3>
             <p>Best in a split terminal pane. It pins to the top right, updates live, and works offline with last-known state.</p>
@@ -250,25 +357,27 @@ revenue  <span class="green">██</span><span class="dim">▁▁▁</span>  <s
 
   <section id="clans">
     <div class="rail">
-      <p class="kicker">02 · the point of it</p>
-      <h2>Clans: 2 to 6 friends, one <span class="accent">shared</span> feed</h2>
-      <p>A clan is a small invite-only group. Everyone's verified milestones print in everyone's terminal within seconds. Rows sort alphabetically, there is no ranking, and live numbers like MRR stay private to the owner.</p>
+      <div class="reveal">
+        <p class="kicker">02 · the point of it</p>
+        <h2>Clans: 2 to 6 friends, one <span class="accent">shared</span> feed</h2>
+        <p>A clan is a small invite-only group. Everyone's verified milestones print in everyone's terminal within seconds. Rows sort alphabetically, there is no ranking, and live numbers like MRR stay private to the owner.</p>
+      </div>
       <ol class="steps">
-        <li>
+        <li class="reveal">
           <div>
             <h3>Create your clan</h3>
             <p>Prints a one-time invite code.</p>
             <div class="cmd"><span class="dollar" aria-hidden="true">$</span><code tabindex="0" id="c5">forge clan create night-shift</code><button class="copy" type="button" data-copy="c5">Copy</button></div>
           </div>
         </li>
-        <li>
+        <li class="reveal">
           <div>
             <h3>Send friends this page</h3>
             <p>They install with the same one-liner up top, then join with your code.</p>
             <div class="cmd"><span class="dollar" aria-hidden="true">$</span><code tabindex="0" id="c6">forge clan join &lt;code&gt;</code><button class="copy" type="button" data-copy="c6">Copy</button></div>
           </div>
         </li>
-        <li>
+        <li class="reveal">
           <div>
             <h3>Check in weekly, ask how</h3>
             <p><code>forge checkin</code> is a three-field weekly ritual. When a clanmate hits a milestone, <code>forge how sarah revenue2</code> shows the verified evidence and the story behind it.</p>
@@ -281,63 +390,89 @@ revenue  <span class="green">██</span><span class="dim">▁▁▁</span>  <s
 
   <section id="milestones">
     <div class="rail">
-      <p class="kicker">03 · how bars move</p>
-      <h2>Milestones fire from <span class="accent">evidence</span>, not claims</h2>
-      <p>Each vertical is a ladder of rungs. Every rung names its verification source, and each fired milestone is a permanent dated event you can inspect with <code>forge how</code>. Connect sources as you need them: <code>forge connect stripe</code>, <code>forge connect deploy</code>, <code>forge connect domain</code>.</p>
-      <div class="grid2">
-        <div>
-          <table>
-            <caption>Build, verified via GitHub</caption>
-            <thead><tr><th scope="col">Rung</th><th scope="col">Milestone</th><th scope="col">Proof</th></tr></thead>
-            <tbody>
-              <tr><td>1</td><td>Repo connected, first commit</td><td>GitHub OAuth</td></tr>
-              <tr><td>2</td><td>First merged PR</td><td>GitHub OAuth</td></tr>
-              <tr><td>3</td><td>CI passing on default branch</td><td>GitHub OAuth</td></tr>
-            </tbody>
-          </table>
-          <table>
-            <caption>Ship, verified via probes</caption>
-            <thead><tr><th scope="col">Rung</th><th scope="col">Milestone</th><th scope="col">Proof</th></tr></thead>
-            <tbody>
-              <tr><td>1</td><td>Deployed URL live with SSL</td><td>Platform probe</td></tr>
-              <tr><td>2</td><td>Custom domain verified</td><td>DNS TXT challenge</td></tr>
-              <tr><td>3</td><td>Publicly launched</td><td>Registry lookup</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <table>
-            <caption>Revenue, verified via Stripe</caption>
-            <thead><tr><th scope="col">Rung</th><th scope="col">Milestone</th><th scope="col">Proof</th></tr></thead>
-            <tbody>
-              <tr><td>1</td><td>Payments connected, checkout live</td><td>Stripe</td></tr>
-              <tr><td>2</td><td>First dollar: first successful charge</td><td>Stripe</td></tr>
-              <tr><td>3</td><td>First 10 customers</td><td>Stripe</td></tr>
-            </tbody>
-          </table>
-          <p style="margin-top:1.5rem">Commits only gate Build rung 1, because commits are easy to fake. PRs, CI, probes, and charges gate everything else. Stripe access uses a restricted read-only key you create yourself.</p>
-        </div>
+      <div class="reveal">
+        <p class="kicker">03 · how bars move</p>
+        <h2>Milestones fire from <span class="accent">evidence</span>, not claims</h2>
+        <p>Each vertical is a ladder of rungs. Every rung names its verification source, and each fired milestone is a permanent dated event you can inspect with <code>forge how</code>. Connect sources as you need them: <code>forge connect stripe</code>, <code>forge connect deploy</code>, <code>forge connect domain</code>.</p>
       </div>
+      <div class="ladders">
+        <article class="ladder reveal" aria-labelledby="ladder-build">
+          <header>
+            <h3 id="ladder-build">Build</h3>
+            <span class="via">via GitHub</span>
+          </header>
+          <p class="bar" aria-hidden="true"><span class="cyan">███</span><span class="dim">▁▁</span></p>
+          <ul>
+            <li><span class="n" aria-hidden="true">01</span><span><strong>Repo connected, first commit</strong><span class="proof">GitHub OAuth</span></span></li>
+            <li><span class="n" aria-hidden="true">02</span><span><strong>First merged PR</strong><span class="proof">GitHub OAuth</span></span></li>
+            <li><span class="n" aria-hidden="true">03</span><span><strong>CI passing on default branch</strong><span class="proof">GitHub OAuth</span></span></li>
+          </ul>
+        </article>
+        <article class="ladder reveal" aria-labelledby="ladder-ship">
+          <header>
+            <h3 id="ladder-ship">Ship</h3>
+            <span class="via">via probes</span>
+          </header>
+          <p class="bar" aria-hidden="true"><span class="magenta">██</span><span class="dim">▁▁▁</span></p>
+          <ul>
+            <li><span class="n" aria-hidden="true">01</span><span><strong>Deployed URL live with SSL</strong><span class="proof">Platform probe</span></span></li>
+            <li><span class="n" aria-hidden="true">02</span><span><strong>Custom domain verified</strong><span class="proof">DNS TXT challenge</span></span></li>
+            <li><span class="n" aria-hidden="true">03</span><span><strong>Publicly launched</strong><span class="proof">Registry lookup</span></span></li>
+          </ul>
+        </article>
+        <article class="ladder reveal" aria-labelledby="ladder-revenue">
+          <header>
+            <h3 id="ladder-revenue">Revenue</h3>
+            <span class="via">via Stripe</span>
+          </header>
+          <p class="bar" aria-hidden="true"><span class="green">██</span><span class="dim">▁▁▁</span></p>
+          <ul>
+            <li><span class="n" aria-hidden="true">01</span><span><strong>Payments connected, checkout live</strong><span class="proof">Stripe</span></span></li>
+            <li><span class="n" aria-hidden="true">02</span><span><strong>First dollar: first successful charge</strong><span class="proof">Stripe</span></span></li>
+            <li><span class="n" aria-hidden="true">03</span><span><strong>First 10 customers</strong><span class="proof">Stripe</span></span></li>
+          </ul>
+        </article>
+      </div>
+      <p class="fineprint reveal">Commits only gate Build rung 1, because commits are easy to fake. PRs, CI, probes, and charges gate everything else. Stripe access uses a restricted read-only key you create yourself.</p>
     </div>
   </section>
 
   <section id="privacy">
     <div class="rail">
-      <p class="kicker">04 · boundaries</p>
-      <h2>What Forge sees, and what it <span class="accent">never</span> does</h2>
-      <p>Forge stores milestone events, not your code and not your numbers. GitHub access verifies merges and CI. Stripe access is a read-only restricted key. Your clan sees that your first charge happened, never the amount, and live metrics stay owner-private. Uninstall by deleting <code>~/.forge</code>, <code>~/.local/bin/forge</code>, and the <code>post-commit</code> hook in your repo.</p>
+      <div class="reveal">
+        <p class="kicker">04 · boundaries</p>
+        <h2>What Forge sees, and what it <span class="accent">never</span> does</h2>
+        <p>Forge stores milestone events, not your code and not your numbers. GitHub access verifies merges and CI. Stripe access is a read-only restricted key. Your clan sees that your first charge happened, never the amount, and live metrics stay owner-private. Uninstall by deleting <code>~/.forge</code>, <code>~/.local/bin/forge</code>, and the <code>post-commit</code> hook in your repo.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta" aria-labelledby="cta-heading">
+    <div class="rail">
+      <div class="reveal">
+        <p class="kicker" style="justify-content:center">05 · start tonight</p>
+        <h2 id="cta-heading">Ship with your friends <span class="accent">watching</span>.</h2>
+        <p>One command to install. One code to join a clan. The next milestone that fires could be yours.</p>
+        <div class="cmd">
+          <span class="dollar" aria-hidden="true">$</span>
+          <code tabindex="0" id="cta-cmd">curl -fsSL __FORGE_SERVER__/install.sh | sh</code>
+          <button class="copy" type="button" data-copy="cta-cmd">Copy</button>
+        </div>
+      </div>
     </div>
   </section>
 </main>
 
 <footer class="site">
   <div class="rail">
-    <p>Forge is open source. Read the code, file issues, or run your own server: <a href="https://github.com/rocketman3881/forge">github.com/rocketman3881/forge</a>.</p>
+    <p><span aria-hidden="true">⚒</span> Forge is open source: <a href="https://github.com/rocketman3881/forge">github.com/rocketman3881/forge</a></p>
+    <p>Read the code, file issues, or run your own server.</p>
   </div>
 </footer>
 
 <div class="sr" aria-live="polite" id="copy-status"></div>
 <script>
+  document.documentElement.classList.add('js')
   const status = document.getElementById('copy-status')
   document.querySelectorAll('.copy').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -353,6 +488,23 @@ revenue  <span class="green">██</span><span class="dim">▁▁▁</span>  <s
       }
     })
   })
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (reduced || !('IntersectionObserver' in window)) {
+    document.documentElement.classList.remove('js')
+  }
+  if (!reduced && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) { e.target.classList.add('shown'); io.unobserve(e.target) }
+      }
+    }, { rootMargin: '0px 0px -10% 0px' })
+    document.querySelectorAll('.reveal').forEach((el) => io.observe(el))
+    setTimeout(() => document.getElementById('feed1')?.classList.add('shown'), 1200)
+    setTimeout(() => document.getElementById('feed2')?.classList.add('shown'), 2000)
+  } else {
+    document.querySelectorAll('.feed-line').forEach((el) => el.classList.add('shown'))
+  }
 </script>
 </body>
 </html>
