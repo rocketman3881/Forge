@@ -63,6 +63,7 @@ function ttySize(ttyPath: string): { rows: number; cols: number } {
 
 /** Daemon body: repaint the panel at the top-right of the given tty forever. */
 export function overlayDaemon(store: Store, ttyPath: string): void {
+  if (!/^\/dev\/[\w/.-]+$/.test(ttyPath)) throw new Error(`not a tty path: ${ttyPath}`)
   const fd = openSync(ttyPath, 'w')
   const draw = (): void => {
     const { cols } = ttySize(ttyPath)
