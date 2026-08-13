@@ -29,6 +29,25 @@ Requires Node 22+ and pnpm.
 | `PORT` | Listen port (default `3000`) |
 | `FORGE_WORKERS` | Set to `off` to disable background polling |
 
+## Deploying (Railway, ~$5/mo MVP)
+
+The server must run as a single always-on instance (WebSockets, in-process
+workers, in-memory OAuth state). `Dockerfile` + `railway.json` are included.
+
+1. Push to GitHub, then railway.com → New Project → Deploy from GitHub repo.
+2. Add a Postgres service in the same project (`DATABASE_URL` is auto-injected;
+   migrations run at boot).
+3. Set variables on the app service: `FORGE_SECRET` (`openssl rand -hex 32`),
+   `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_WEBHOOK_SECRET`,
+   `PUBLIC_URL=https://api.<your-domain>`.
+4. Point a CNAME `api.<your-domain>` at the Railway-issued hostname and add it
+   as a custom domain (TLS is automatic).
+5. Register a GitHub App (preferred over a classic OAuth app) with callback
+   `https://api.<your-domain>/auth/github/callback` and webhook
+   `https://api.<your-domain>/webhooks/github`.
+
+Users then run the CLI with `FORGE_SERVER=https://api.<your-domain>`.
+
 ## Using the CLI
 
     pnpm --filter forge-cli build
