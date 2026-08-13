@@ -77,6 +77,18 @@ CREATE TABLE IF NOT EXISTS probe_results (
   probed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   ok BOOLEAN NOT NULL
 );
+CREATE TABLE IF NOT EXISTS metric_snapshots (
+  project_id BIGINT NOT NULL REFERENCES projects(id),
+  metric TEXT NOT NULL CHECK (metric IN ('mrr','views','social')),
+  value BIGINT NOT NULL,
+  captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (project_id, metric)
+);
+CREATE TABLE IF NOT EXISTS metric_shares (
+  project_id BIGINT NOT NULL REFERENCES projects(id),
+  metric TEXT NOT NULL CHECK (metric IN ('mrr','views','social')),
+  PRIMARY KEY (project_id, metric)
+);
 `
 
 const TRIGGER_STATEMENTS = [
@@ -92,6 +104,10 @@ $$ LANGUAGE plpgsql`,
   `DROP TRIGGER IF EXISTS clan_cap ON clan_members`,
   `CREATE TRIGGER clan_cap BEFORE INSERT ON clan_members
 FOR EACH ROW EXECUTE FUNCTION enforce_clan_cap()`,
+  // widen provider check for metric sources (plausible views, youtube social)
+  `ALTER TABLE project_integrations DROP CONSTRAINT IF EXISTS project_integrations_provider_check`,
+  `ALTER TABLE project_integrations ADD CONSTRAINT project_integrations_provider_check
+CHECK (provider IN ('stripe','plausible','youtube'))`,
 ]
 
 export async function migrate(db: Db): Promise<void> {

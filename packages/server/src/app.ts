@@ -7,7 +7,7 @@ import { registerGithubAuth, type GithubExchange } from './auth/github.js'
 import { registerProjects } from './projects/routes.js'
 import { registerClans } from './clans/routes.js'
 import { registerCheckins } from './checkins/routes.js'
-import { registerIntegrations, type StripeValidate, type WebhookCreate } from './integrations/routes.js'
+import { registerIntegrations, type PlausibleValidate, type StripeValidate, type WebhookCreate } from './integrations/routes.js'
 import { registerGithubWebhook } from './workers/github-webhook.js'
 import { listProjectEvents, listClanFeed } from './events/log.js'
 import { userFromRequest } from './auth/sessions.js'
@@ -22,7 +22,7 @@ export interface AppDeps {
   secretKey?: Buffer
   notifier?: Notifier
   github?: { clientId: string; exchange: GithubExchange }
-  integrations?: { stripeValidate: StripeValidate; webhookCreate: WebhookCreate }
+  integrations?: { stripeValidate: StripeValidate; webhookCreate: WebhookCreate; plausibleValidate?: PlausibleValidate }
   githubWebhookSecret?: string
   broadcaster?: ClanBroadcaster
 }
@@ -75,6 +75,40 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     )
     if (!member.rows[0]) return reply.code(403).send({ error: 'not a clan member' })
     return reply.send({ events: await listClanFeed(deps.db, clanId) })
+  })
+
+  // Shared metrics only: a row appears solely when the owner opted in via /share.
+  app.get<{ Params: { clanId: string } }>('/clans/:clanId/metrics', async (req, reply) => {
+    const user = await userFromRequest(deps.db, req)
+    if (!user) return reply.code(401).send({ error: 'unauthenticated' })
+    const clanId = parseId(req.params.clanId)
+    if (clanId === null) return reply.code(400).send({ error: 'invalid id' })
+    const member = await deps.db.query(
+      `SELECT 1 FROM clan_members WHERE clan_id = $1 AND user_id = $2`,
+      [clanId, user.id],
+    )
+    if (!member.rows[0]) return reply.code(403).send({ error: 'not a clan member' })
+    const { rows } = await deps.db.query<{
+      handle: string; project_name: string; metric: string; value: string; captured_at: string
+    }>(
+      `SELECT u.handle, p.name AS project_name, ms.metric, ms.value, ms.captured_at
+       FROM metric_snapshots ms
+       JOIN metric_shares sh ON sh.project_id = ms.project_id AND sh.metric = ms.metric
+       JOIN projects p ON p.id = ms.project_id
+       JOIN users u ON u.id = p.owner_id
+       JOIN clan_members cm ON cm.user_id = u.id AND cm.clan_id = $1
+       ORDER BY u.handle, ms.metric`,
+      [clanId],
+    )
+    return reply.send({
+      metrics: rows.map((r) => ({
+        handle: r.handle,
+        projectName: r.project_name,
+        metric: r.metric,
+        value: Number(r.value),
+        capturedAt: r.captured_at,
+      })),
+    })
   })
 
   return app

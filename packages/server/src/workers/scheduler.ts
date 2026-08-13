@@ -3,6 +3,7 @@ import type { Notifier } from '../events/emit.js'
 import { runGithubPoll, type GithubClient } from './github-poll.js'
 import { runStripePoll, type StripeClient } from './stripe-poll.js'
 import { runProber, type Fetcher, type TxtResolver } from './prober.js'
+import { runMetricsPoll, type MetricsClients } from './metrics-poll.js'
 
 export interface SchedulerDeps {
   db: Db
@@ -12,6 +13,7 @@ export interface SchedulerDeps {
   stripe: StripeClient
   fetch: Fetcher
   resolveTxt: TxtResolver
+  metrics: MetricsClients
 }
 
 export async function runAllProducers(deps: SchedulerDeps): Promise<void> {
@@ -19,6 +21,7 @@ export async function runAllProducers(deps: SchedulerDeps): Promise<void> {
     () => runGithubPoll(deps),
     () => runStripePoll({ db: deps.db, notifier: deps.notifier, secretKey: deps.secretKey, stripe: deps.stripe }),
     () => runProber({ db: deps.db, notifier: deps.notifier, fetch: deps.fetch, resolveTxt: deps.resolveTxt }),
+    () => runMetricsPoll({ db: deps.db, secretKey: deps.secretKey, stripe: deps.stripe, metrics: deps.metrics }),
   ]
   for (const job of jobs) {
     try {

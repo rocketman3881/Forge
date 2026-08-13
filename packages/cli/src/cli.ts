@@ -6,7 +6,7 @@ import { ApiClient } from './api.js'
 import { login } from './auth.js'
 import { App } from './ui/App.js'
 import { CheckinForm } from './ui/CheckinForm.js'
-import { init, connect, clan, how, refresh, status } from './commands.js'
+import { init, connect, clan, how, refresh, status, share } from './commands.js'
 import { overlayDaemon, overlayStart, overlayStop } from './overlay.js'
 
 const HELP = `forge — verified founder accountability, in your terminal
@@ -15,6 +15,9 @@ const HELP = `forge — verified founder accountability, in your terminal
   forge login               sign in with GitHub
   forge init                register this repo as a project + hook shim
   forge connect github <owner/repo>
+  forge connect plausible <site-id> <api-key>
+  forge connect youtube <@handle>
+  forge share <mrr|views|social> [off]   opt in/out of clan-visible metrics
   forge connect stripe <restricted read-only key>
   forge connect deploy <https://url>
   forge connect domain <example.com>
@@ -90,7 +93,9 @@ async function main(): Promise<void> {
     case 'init':
       return init(api, store, io)
     case 'connect':
-      return connect(api, store, io, args[0] ?? '', args[1])
+      return connect(api, store, io, args[0] ?? '', args.slice(1).join(' ') || undefined)
+    case 'share':
+      return share(api, store, io, args[0] ?? '', args[1])
     case 'clan':
       return clan(api, store, io, args[0] ?? '', args[1])
     case 'checkin': {

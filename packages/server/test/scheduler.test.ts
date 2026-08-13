@@ -11,6 +11,7 @@ function deps(db: Awaited<ReturnType<typeof makeTestDb>>, overrides: Partial<Sch
     github: { repoState: async () => null },
     stripe: { summary: async () => null },
     fetch: async () => null, resolveTxt: async () => null,
+    metrics: { plausibleVisitors: async () => null, youtubeViews: async () => null },
     ...overrides,
   }
 }

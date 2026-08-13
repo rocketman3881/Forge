@@ -7,6 +7,14 @@ export interface Project {
   deployUrl: string | null
 }
 
+export interface SharedMetric {
+  handle: string
+  projectName: string
+  metric: 'mrr' | 'views' | 'social'
+  value: number
+  capturedAt: string
+}
+
 export interface FeedEvent {
   id: number
   projectId: number
@@ -104,6 +112,11 @@ export class ApiClient {
       (r: { events: FeedEvent[] }) => r.events, [])
   }
 
+  clanMetrics(clanId: number): Promise<Maybe<SharedMetric[]>> {
+    return this.cachedGet(`metrics-${clanId}`, `/clans/${clanId}/metrics`,
+      (r: { metrics: SharedMetric[] }) => r.metrics, [])
+  }
+
   checkinStatus(clanId: number): Promise<Maybe<CheckinStatus>> {
     return this.cachedGet(`checkin-${clanId}`, `/clans/${clanId}/checkins/status`,
       (r: CheckinStatus) => r, { weekStart: '', completed: 0, total: 0 })
@@ -140,5 +153,17 @@ export class ApiClient {
 
   domainChallenge(projectId: number, domain: string): Promise<{ record: string; value: string }> {
     return this.request('POST', `/projects/${projectId}/domain`, { domain })
+  }
+
+  connectPlausible(projectId: number, siteId: string, apiKey: string): Promise<unknown> {
+    return this.request('POST', `/projects/${projectId}/plausible`, { siteId, apiKey })
+  }
+
+  connectYoutube(projectId: number, handle: string): Promise<unknown> {
+    return this.request('POST', `/projects/${projectId}/youtube`, { handle })
+  }
+
+  setShare(projectId: number, metric: SharedMetric['metric'], enabled: boolean): Promise<unknown> {
+    return this.request('POST', `/projects/${projectId}/share`, { metric, enabled })
   }
 }

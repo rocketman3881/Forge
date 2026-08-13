@@ -463,7 +463,7 @@ revenue  <span class="green">██</span><span class="dim">▁▁▁</span>  <s
       <div class="reveal">
         <p class="kicker">04 · boundaries</p>
         <h2>What Forge sees, and what it <span class="accent">never</span> does</h2>
-        <p>Forge stores milestone events, not your code and not your numbers. GitHub access verifies merges and CI. Stripe access is a read-only restricted key. Your clan sees that your first charge happened, never the amount, and live metrics stay owner-private. Uninstall by deleting <code>~/.forge</code>, <code>~/.local/bin/forge</code>, and the <code>post-commit</code> hook in your repo.</p>
+        <p>Forge stores milestone events, not your code. GitHub access verifies merges and CI. Stripe access is a read-only restricted key. Live numbers are private by default: your clan sees that your first charge happened, never the amount — unless you opt in. <code>forge share mrr</code>, <code>forge share views</code>, or <code>forge share social</code> makes that metric visible to your clan, verified from the source (Stripe, Plausible, YouTube), and <code>forge share mrr off</code> makes it private again. Uninstall by deleting <code>~/.forge</code>, <code>~/.local/bin/forge</code>, and the <code>post-commit</code> hook in your repo.</p>
       </div>
     </div>
   </section>

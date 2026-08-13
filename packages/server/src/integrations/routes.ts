@@ -8,6 +8,10 @@ import { emitMilestone, type Notifier } from '../events/emit.js'
 
 export type StripeValidate = (apiKey: string) => Promise<boolean>
 export type WebhookCreate = (githubToken: string, repoFullName: string) => Promise<boolean>
+export type PlausibleValidate = (siteId: string, apiKey: string) => Promise<boolean>
+
+const METRICS = ['mrr', 'views', 'social'] as const
+export type Metric = (typeof METRICS)[number]
 
 interface Deps {
   db: Db
@@ -15,6 +19,7 @@ interface Deps {
   notifier: Notifier
   stripeValidate: StripeValidate
   webhookCreate: WebhookCreate
+  plausibleValidate?: PlausibleValidate
 }
 
 async function ownedProject(
@@ -122,6 +127,90 @@ export function registerIntegrations(app: FastifyInstance, deps: Deps): void {
         req.body.deployUrl, own.projectId,
       ])
       return reply.send({ ok: true })
+    },
+  )
+
+  app.post<{ Params: { projectId: string }; Body: { siteId: string; apiKey: string } }>(
+    '/projects/:projectId/plausible',
+    {
+      schema: {
+        body: {
+          type: 'object', required: ['siteId', 'apiKey'],
+          properties: {
+            siteId: { type: 'string', minLength: 4, maxLength: 253, pattern: '^[a-z0-9.-]+$' },
+            apiKey: { type: 'string', minLength: 1, maxLength: 200 },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (req, reply) => {
+      const own = await ownedProject(deps, req)
+      if (own.status !== 200) return reply.code(own.status).send({ error: 'rejected' })
+      if (deps.plausibleValidate && !(await deps.plausibleValidate(req.body.siteId, req.body.apiKey))) {
+        return reply.code(400).send({ error: 'invalid plausible site or key' })
+      }
+      await deps.db.query(
+        `INSERT INTO project_integrations (project_id, provider, secret_enc) VALUES ($1, 'plausible', $2)
+         ON CONFLICT (project_id, provider) DO UPDATE SET secret_enc = EXCLUDED.secret_enc`,
+        [own.projectId, encryptSecret(JSON.stringify({ siteId: req.body.siteId, apiKey: req.body.apiKey }), deps.secretKey)],
+      )
+      return reply.send({ connected: true })
+    },
+  )
+
+  app.post<{ Params: { projectId: string }; Body: { handle: string } }>(
+    '/projects/:projectId/youtube',
+    {
+      schema: {
+        body: {
+          type: 'object', required: ['handle'],
+          properties: { handle: { type: 'string', minLength: 2, maxLength: 60, pattern: '^@?[A-Za-z0-9._-]+$' } },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (req, reply) => {
+      const own = await ownedProject(deps, req)
+      if (own.status !== 200) return reply.code(own.status).send({ error: 'rejected' })
+      await deps.db.query(
+        `INSERT INTO project_integrations (project_id, provider, secret_enc) VALUES ($1, 'youtube', $2)
+         ON CONFLICT (project_id, provider) DO UPDATE SET secret_enc = EXCLUDED.secret_enc`,
+        [own.projectId, encryptSecret(req.body.handle.replace(/^@/, ''), deps.secretKey)],
+      )
+      return reply.send({ connected: true })
+    },
+  )
+
+  app.post<{ Params: { projectId: string }; Body: { metric: Metric; enabled: boolean } }>(
+    '/projects/:projectId/share',
+    {
+      schema: {
+        body: {
+          type: 'object', required: ['metric', 'enabled'],
+          properties: {
+            metric: { type: 'string', enum: [...METRICS] },
+            enabled: { type: 'boolean' },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (req, reply) => {
+      const own = await ownedProject(deps, req)
+      if (own.status !== 200) return reply.code(own.status).send({ error: 'rejected' })
+      if (req.body.enabled) {
+        await deps.db.query(
+          `INSERT INTO metric_shares (project_id, metric) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [own.projectId, req.body.metric],
+        )
+      } else {
+        await deps.db.query(
+          `DELETE FROM metric_shares WHERE project_id = $1 AND metric = $2`,
+          [own.projectId, req.body.metric],
+        )
+      }
+      return reply.send({ metric: req.body.metric, shared: req.body.enabled })
     },
   )
 

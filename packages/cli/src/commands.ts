@@ -1,7 +1,7 @@
 import { writeFileSync, chmodSync, existsSync, mkdirSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
-import type { ApiClient, CheckinStatus, Clan, FeedEvent, MilestoneEvent, Project } from './api.js'
+import type { ApiClient, CheckinStatus, Clan, FeedEvent, MilestoneEvent, Project, SharedMetric } from './api.js'
 import type { Store } from './store.js'
 
 export interface Io {
@@ -78,8 +78,21 @@ export async function connect(
       io.log('deploy url saved — probed every ~15 min')
       return
     }
+    case 'plausible': {
+      const [siteId, apiKey] = (value ?? '').split(/\s+/)
+      if (!siteId || !apiKey) throw new Error('usage: forge connect plausible <site-id> <api-key>')
+      await api.connectPlausible(projectId, siteId, apiKey)
+      io.log('plausible connected — website views tracked (share with `forge share views`)')
+      return
+    }
+    case 'youtube': {
+      if (!value) throw new Error('usage: forge connect youtube <@handle>')
+      await api.connectYoutube(projectId, value)
+      io.log('youtube connected — public channel views tracked (share with `forge share social`)')
+      return
+    }
     default:
-      throw new Error(`unknown provider "${provider}" — use github|stripe|domain|deploy`)
+      throw new Error(`unknown provider "${provider}" — use github|stripe|domain|deploy|plausible|youtube`)
   }
 }
 
@@ -119,6 +132,20 @@ export async function how(api: ApiClient, store: Store, io: Io, user: string, mi
     return
   }
   io.log(formatEvidence(hit))
+}
+
+/** `forge share <mrr|views|social> [off]`: opt in/out of clan-visible live metrics. */
+export async function share(api: ApiClient, store: Store, io: Io, metric: string, toggle?: string): Promise<void> {
+  const projectId = store.getConfig().projectId
+  if (!projectId) throw new Error('no project configured — run `forge init` first')
+  if (metric !== 'mrr' && metric !== 'views' && metric !== 'social') {
+    throw new Error('usage: forge share <mrr|views|social> [off]')
+  }
+  const enabled = toggle !== 'off'
+  await api.setShare(projectId, metric, enabled)
+  io.log(enabled
+    ? `${metric} is now visible to your clan (verified, refreshed ~15 min)`
+    : `${metric} is now private again`)
 }
 
 /**
@@ -172,9 +199,19 @@ export function status(store: Store, io: Io): void {
     for (const e of feed) {
       byMember.set(e.handle, [...(byMember.get(e.handle) ?? []), e])
     }
+    const shared = store.getCache<SharedMetric[]>(`metrics-${clanId}`)?.value ?? []
+    const fmtMetric = (s: SharedMetric): string => {
+      const v = s.value
+      const compact = v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}m` : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)
+      if (s.metric === 'mrr') return paint(`$${Math.round(v / 100)} mrr`, '32')
+      if (s.metric === 'views') return paint(`${compact} views`, '36')
+      return paint(`${compact} yt`, '35')
+    }
     for (const m of clan.members.slice(0, 4)) {
       const theirs = byMember.get(m.handle)
-      parts.push(`${m.handle} ${theirs ? climb(tops(theirs)) : dim('—')}`)
+      const mine = shared.filter((s) => s.handle === m.handle).map(fmtMetric)
+      const climbPart = theirs ? climb(tops(theirs)) : dim('—')
+      parts.push(`${m.handle} ${mine.length ? mine.join(' ') : climbPart}`)
     }
   }
 
@@ -189,5 +226,6 @@ export async function refresh(api: ApiClient): Promise<void> {
   for (const c of clans.value) {
     await api.clanFeed(c.id)
     await api.checkinStatus(c.id)
+    await api.clanMetrics(c.id)
   }
 }
