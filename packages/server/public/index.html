@@ -95,6 +95,7 @@
   }
   .hero .rail { position: relative; z-index: 1; }
   .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 3rem; align-items: center; }
+  .hero-grid > * { min-width: 0; }
   @media (max-width: 56rem) { .hero-grid { grid-template-columns: 1fr; } }
   .eyebrow {
     display: inline-flex; align-items: center; gap: .5rem;
@@ -170,7 +171,7 @@
     transition: border-color 140ms ease, box-shadow 140ms ease;
   }
   .cmd:hover { border-color: #39414d; box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.05); }
-  .cmd code { flex: 1; overflow-x: auto; white-space: nowrap; }
+  .cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; }
   .cmd .dollar { color: var(--ember); user-select: none; }
   .copy {
     font-family: var(--sans); font-size: .8125rem; font-weight: 600;
@@ -182,7 +183,7 @@
   .copy:active { background: #c08c0f; }
   .copy[data-done="true"] { background: var(--ok); }
 
-  section { padding-block: 5.5rem; border-top: 1px solid var(--border-soft); position: relative; }
+  section { padding-block: 5.5rem; border-top: 1px solid var(--border-soft); position: relative; scroll-margin-top: 4rem; }
   h2 { font-size: clamp(1.875rem, 4vw, 2.75rem); letter-spacing: -0.022em; line-height: 1.12; margin: 0 0 .75rem; }
   .kicker {
     font-family: var(--mono); font-size: .8125rem; color: var(--ember);
@@ -213,6 +214,7 @@
     transition: border-color 160ms ease, background-color 160ms ease;
   }
   ol.steps > li:hover { border-color: var(--border); background: var(--surface); }
+  ol.steps > li, ol.steps > li > div { min-width: 0; }
   ol.steps > li::before {
     content: "0" counter(step);
     font-family: var(--mono); font-weight: 400; font-size: .8125rem; color: var(--ember);
@@ -264,6 +266,25 @@
   }
   footer.site .rail { display: flex; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; align-items: baseline; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+  @media (max-width: 30rem) {
+    .rail { padding-inline: 1rem; }
+    header.site .rail { flex-wrap: wrap; row-gap: .5rem; }
+    nav.site { flex-wrap: wrap; row-gap: .25rem; }
+    nav.site a { margin-inline-start: 0; margin-inline-end: 1rem; }
+    .nav-cta { margin-inline-start: 0; margin-inline-end: 0; }
+    .hero { padding-block: 3.5rem 3rem; }
+    .hero h1 { font-size: clamp(2rem, 9.5vw, 2.5rem); overflow-wrap: break-word; }
+    .hero p.lede { font-size: 1.125rem; }
+    .eyebrow { white-space: normal; line-height: 1.4; }
+    .term { font-size: .75rem; }
+    .cmd { font-size: .8125rem; padding-inline-start: .75rem; }
+    section { padding-block: 3.5rem; scroll-margin-top: 7rem; }
+    ol.steps > li { grid-template-columns: 1fr; padding: 1.125rem 1.125rem; }
+    ol.steps > li::before { margin-block-end: .25rem; }
+    .ladder { padding: 1.25rem; }
+    .cta .cmd { margin-top: 1.75rem; }
+  }
 </style>
 </head>
 <body>
