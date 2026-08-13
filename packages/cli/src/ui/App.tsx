@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Box, useStdout } from 'ink'
+import { Box, Text, useApp, useInput, useStdout } from 'ink'
 import WebSocket from 'ws'
 import type { ApiClient, FeedEvent } from '../api.js'
 import { Sidebar, type SidebarProps } from './Sidebar.js'
@@ -12,7 +12,12 @@ interface AppProps {
 }
 
 export function App({ api, serverUrl, token, pollMs = 60_000 }: AppProps): React.JSX.Element {
+  const { exit } = useApp()
   const { stdout } = useStdout()
+
+  useInput((input, key) => {
+    if (input === 'q' || key.escape) exit()
+  })
   const [columns, setColumns] = useState(stdout.columns ?? 80)
   const [state, setState] = useState<SidebarProps>({
     projects: [], eventsByProject: {}, clan: null, checkin: null,
@@ -79,8 +84,11 @@ export function App({ api, serverUrl, token, pollMs = 60_000 }: AppProps): React
   }, [state.clan?.id, serverUrl, token])
 
   return (
-    <Box width={columns} justifyContent="flex-end">
+    <Box width={columns} flexDirection="column" alignItems="flex-end">
       <Sidebar {...state} />
+      <Box paddingX={2}>
+        <Text dimColor>q to quit · keep this pane open, work in a split (⌘\)</Text>
+      </Box>
     </Box>
   )
 }
