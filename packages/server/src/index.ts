@@ -25,6 +25,7 @@ const notifier = new ClanBroadcaster(db)
 
 const app = buildApp({
   db,
+  publicUrl,
   secretKey,
   notifier,
   broadcaster: notifier,

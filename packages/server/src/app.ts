@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import Fastify, { type FastifyInstance } from 'fastify'
 import type { Db } from './db/client.js'
 import { registerGithubAuth, type GithubExchange } from './auth/github.js'
@@ -14,6 +17,8 @@ import { registerClanSocket, type ClanBroadcaster } from './realtime/broadcaster
 
 export interface AppDeps {
   db: Db
+  /** Public base URL substituted into the web page and installer script. */
+  publicUrl?: string
   secretKey?: Buffer
   notifier?: Notifier
   github?: { clientId: string; exchange: GithubExchange }
@@ -27,6 +32,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   const notifier = deps.notifier ?? deps.broadcaster ?? nullNotifier
   if (deps.broadcaster) registerClanSocket(app, { db: deps.db, broadcaster: deps.broadcaster })
   app.get('/health', async () => ({ ok: true }))
+  registerWebPages(app, deps.publicUrl ?? 'http://localhost:3000')
   registerProjects(app, { db: deps.db })
   registerClans(app, { db: deps.db })
   registerCheckins(app, { db: deps.db })
@@ -72,4 +78,26 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   })
 
   return app
+}
+
+const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public')
+
+function registerWebPages(app: FastifyInstance, publicUrl: string): void {
+  const page = (file: string): string | null => {
+    try {
+      return readFileSync(join(publicDir, file), 'utf8').replaceAll('__FORGE_SERVER__', publicUrl)
+    } catch {
+      return null
+    }
+  }
+  app.get('/', async (_req, reply) => {
+    const html = page('index.html')
+    if (!html) return reply.code(404).send({ error: 'not found' })
+    return reply.type('text/html; charset=utf-8').send(html)
+  })
+  app.get('/install.sh', async (_req, reply) => {
+    const sh = page('install.sh')
+    if (!sh) return reply.code(404).send({ error: 'not found' })
+    return reply.type('text/plain; charset=utf-8').send(sh)
+  })
 }
