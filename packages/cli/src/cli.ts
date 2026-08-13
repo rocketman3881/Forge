@@ -7,6 +7,7 @@ import { login } from './auth.js'
 import { App } from './ui/App.js'
 import { CheckinForm } from './ui/CheckinForm.js'
 import { init, connect, clan, how, refresh, status } from './commands.js'
+import { overlayDaemon, overlayStart, overlayStop } from './overlay.js'
 
 const HELP = `forge — verified founder accountability, in your terminal
 
@@ -22,6 +23,7 @@ const HELP = `forge — verified founder accountability, in your terminal
   forge how <user> <milestone>   e.g. forge how sarah revenue2
   forge refresh             warm the offline cache
   forge status              one-line summary from cache (for statuslines)
+  forge overlay [stop]      pin a mini panel top-right of THIS terminal
 
   FORGE_SERVER overrides the backend url (default http://localhost:3000)
 `
@@ -44,6 +46,16 @@ async function main(): Promise<void> {
   if (cmd === 'status') {
     // cache-only, no network, no login — safe for statusline scripts
     status(store, io)
+    return
+  }
+
+  if (cmd === 'overlay') {
+    if (args[0] === '--daemon' && args[1]) {
+      overlayDaemon(store, args[1])
+      return // keeps running via its interval
+    }
+    if (args[0] === 'stop') overlayStop(io)
+    else overlayStart(io)
     return
   }
 
