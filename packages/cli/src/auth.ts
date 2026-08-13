@@ -62,7 +62,8 @@ export function login(
       const address = server.address()
       const port = typeof address === 'object' && address ? address.port : 0
       const redirect = encodeURIComponent(`http://127.0.0.1:${port}/cb`)
-      const startUrl = `${serverUrl}/auth/github/start?redirect_uri=${redirect}`
+      // repo scope lets the server install milestone webhooks on the user's repos
+      const startUrl = `${serverUrl}/auth/github/start?redirect_uri=${redirect}&scope=repo`
       console.log(`Opening browser for GitHub sign-in…\nIf nothing opens, visit:\n  ${startUrl}`)
       opener(startUrl)
     })
