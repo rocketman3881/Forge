@@ -7,19 +7,22 @@
 <meta name="description" content="A terminal sidebar where your clan sees each other's verified project progress. Milestones fire from GitHub, Stripe, and uptime probes. Nothing is self-reported.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --border: #2d333b;
-    --text: #e6edf3;
-    --muted: #9ba3af;
+    --bg: #0a0c10;
+    --surface: #12151b;
+    --surface-2: #171b23;
+    --border: #262c36;
+    --border-soft: #1d2229;
+    --text: #e9eef5;
+    --muted: #a3adba;
     --ember: #f0b429;
     --ember-press: #d99e14;
     --ok: #56d364;
     --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     --sans: "Inter", system-ui, -apple-system, sans-serif;
+    --serif: "Instrument Serif", Georgia, serif;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
@@ -56,28 +59,48 @@
   nav.site a { color: var(--muted); text-decoration: none; margin-inline-start: 1.5rem; font-size: .9375rem; }
   nav.site a:hover { color: var(--text); text-decoration: underline; }
 
-  .hero { padding-block: 4.5rem 3.5rem; }
-  .hero h1 {
-    font-size: clamp(2rem, 5vw, 3.25rem);
-    line-height: 1.15; letter-spacing: -0.02em;
-    margin: 0 0 1rem; max-width: 46rem; font-weight: 700;
+  .hero {
+    padding-block: 5.5rem 4.5rem;
+    position: relative;
+    background:
+      radial-gradient(42rem 26rem at 72% 0%, rgba(240, 180, 41, 0.07), transparent 65%),
+      linear-gradient(var(--border-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border-soft) 1px, transparent 1px);
+    background-size: auto, 3.5rem 3.5rem, 3.5rem 3.5rem;
+    background-position: 0 0, 50% 0, 50% 0;
+    border-bottom: 1px solid var(--border-soft);
   }
-  .hero p.lede { font-size: 1.25rem; color: var(--muted); max-width: 40rem; margin: 0 0 2rem; }
+  .hero h1 {
+    font-size: clamp(2.375rem, 6vw, 4rem);
+    line-height: 1.08; letter-spacing: -0.025em;
+    margin: 0 0 1.25rem; max-width: 48rem; font-weight: 700;
+  }
+  .accent {
+    font-family: var(--serif); font-style: italic; font-weight: 400;
+    color: var(--ember); letter-spacing: 0;
+  }
+  .hero p.lede { font-size: 1.25rem; color: var(--muted); max-width: 40rem; margin: 0 0 2.25rem; }
   .hero .claim { color: var(--text); font-weight: 600; }
 
   .term {
-    background: var(--surface);
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
     border: 1px solid var(--border);
-    border-radius: .5rem;
+    border-radius: .75rem;
     font-family: var(--mono);
     font-size: .875rem;
     line-height: 1.7;
     overflow-x: auto;
+    box-shadow: 0 1.5rem 3rem -1.5rem rgba(0, 0, 0, 0.6);
   }
   .term .bar-title {
     display: flex; gap: .5rem; align-items: center;
-    border-bottom: 1px solid var(--border);
-    padding: .5rem .875rem; color: var(--muted); font-size: .75rem;
+    border-bottom: 1px solid var(--border-soft);
+    padding: .625rem 1rem; color: var(--muted); font-size: .75rem;
+  }
+  .term .bar-title::before {
+    content: "";
+    width: .5rem; height: .5rem; border-radius: 50%;
+    background: var(--ok);
   }
   .term pre { margin: 0; padding: 1rem 1.25rem; }
   .dim { color: #6e7681; }
@@ -89,10 +112,12 @@
   .cmd {
     display: flex; align-items: center; gap: .75rem;
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: .5rem; padding: .625rem .625rem .625rem 1rem;
+    border-radius: .625rem; padding: .625rem .625rem .625rem 1rem;
     font-family: var(--mono); font-size: .9375rem;
     max-width: 40rem;
+    transition: border-color 140ms ease;
   }
+  .cmd:hover { border-color: #39414d; }
   .cmd code { flex: 1; overflow-x: auto; white-space: nowrap; }
   .cmd .dollar { color: var(--muted); user-select: none; }
   .copy {
@@ -105,18 +130,23 @@
   .copy:active { background: #c08c0f; }
   .copy[data-done="true"] { background: var(--ok); }
 
-  section { padding-block: 3rem; border-top: 1px solid var(--border); }
-  h2 { font-size: 1.75rem; letter-spacing: -0.01em; margin: 0 0 .5rem; }
-  .kicker { font-family: var(--mono); font-size: .8125rem; color: var(--ember); margin: 0 0 .5rem; }
+  section { padding-block: 4.5rem; border-top: 1px solid var(--border-soft); }
+  h2 { font-size: clamp(1.75rem, 3.5vw, 2.375rem); letter-spacing: -0.02em; line-height: 1.15; margin: 0 0 .625rem; }
+  .kicker {
+    font-family: var(--mono); font-size: .8125rem; color: var(--ember);
+    margin: 0 0 .875rem; display: flex; align-items: center; gap: .625rem;
+  }
+  .kicker::after { content: ""; height: 1px; width: 2.5rem; background: var(--border); }
   section > .rail > p { color: var(--muted); max-width: 42rem; }
 
   ol.steps { list-style: none; counter-reset: step; margin: 2rem 0 0; padding: 0; display: grid; gap: 2rem; }
   ol.steps > li { counter-increment: step; display: grid; grid-template-columns: 2.5rem 1fr; gap: 1rem; }
   ol.steps > li::before {
-    content: counter(step);
-    font-family: var(--mono); font-weight: 700; color: var(--ember);
-    border: 1px solid var(--border); border-radius: .375rem;
-    width: 2.25rem; height: 2.25rem; display: grid; place-items: center;
+    content: "0" counter(step);
+    font-family: var(--mono); font-weight: 400; font-size: .8125rem; color: var(--ember);
+    border: 1px solid var(--border); border-radius: .5rem;
+    background: var(--surface);
+    width: 2.375rem; height: 2.375rem; display: grid; place-items: center;
   }
   ol.steps h3 { margin: 0 0 .25rem; font-size: 1.125rem; }
   ol.steps p { margin: 0 0 .75rem; color: var(--muted); }
@@ -153,7 +183,7 @@
   <div class="hero">
     <div class="rail grid2">
       <div>
-        <h1>Your clan sees what you actually shipped.</h1>
+        <h1>Your clan sees what you <span class="accent">actually</span> shipped.</h1>
         <p class="lede"><span class="claim">Forge is a terminal sidebar for small groups of founders.</span> Progress bars only move when a milestone is verified through GitHub, Stripe, or a live uptime probe. Nothing is self-reported.</p>
         <div class="cmd">
           <span class="dollar" aria-hidden="true">$</span>
@@ -182,8 +212,8 @@ revenue  <span class="green">██</span><span class="dim">▁▁▁</span>  <s
 
   <section id="install">
     <div class="rail">
-      <p class="kicker">quickstart</p>
-      <h2>Up and running in four commands</h2>
+      <p class="kicker">01 · quickstart</p>
+      <h2>Up and running in <span class="accent">four</span> commands</h2>
       <p>The installer clones the repo, builds the CLI, and puts <code>forge</code> on your PATH. Requires Node 22+, pnpm, and git.</p>
       <ol class="steps">
         <li>
@@ -220,8 +250,8 @@ revenue  <span class="green">██</span><span class="dim">▁▁▁</span>  <s
 
   <section id="clans">
     <div class="rail">
-      <p class="kicker">the point of it</p>
-      <h2>Clans: 2 to 6 friends, one shared feed</h2>
+      <p class="kicker">02 · the point of it</p>
+      <h2>Clans: 2 to 6 friends, one <span class="accent">shared</span> feed</h2>
       <p>A clan is a small invite-only group. Everyone's verified milestones print in everyone's terminal within seconds. Rows sort alphabetically, there is no ranking, and live numbers like MRR stay private to the owner.</p>
       <ol class="steps">
         <li>
@@ -251,8 +281,8 @@ revenue  <span class="green">██</span><span class="dim">▁▁▁</span>  <s
 
   <section id="milestones">
     <div class="rail">
-      <p class="kicker">how bars move</p>
-      <h2>Milestones fire from evidence, not claims</h2>
+      <p class="kicker">03 · how bars move</p>
+      <h2>Milestones fire from <span class="accent">evidence</span>, not claims</h2>
       <p>Each vertical is a ladder of rungs. Every rung names its verification source, and each fired milestone is a permanent dated event you can inspect with <code>forge how</code>. Connect sources as you need them: <code>forge connect stripe</code>, <code>forge connect deploy</code>, <code>forge connect domain</code>.</p>
       <div class="grid2">
         <div>
@@ -293,8 +323,8 @@ revenue  <span class="green">██</span><span class="dim">▁▁▁</span>  <s
 
   <section id="privacy">
     <div class="rail">
-      <p class="kicker">boundaries</p>
-      <h2>What Forge sees, and what it never does</h2>
+      <p class="kicker">04 · boundaries</p>
+      <h2>What Forge sees, and what it <span class="accent">never</span> does</h2>
       <p>Forge stores milestone events, not your code and not your numbers. GitHub access verifies merges and CI. Stripe access is a read-only restricted key. Your clan sees that your first charge happened, never the amount, and live metrics stay owner-private. Uninstall by deleting <code>~/.forge</code>, <code>~/.local/bin/forge</code>, and the <code>post-commit</code> hook in your repo.</p>
     </div>
   </section>
