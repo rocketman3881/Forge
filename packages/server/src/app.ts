@@ -77,6 +77,84 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     return reply.send({ events: await listClanFeed(deps.db, clanId) })
   })
 
+  // Presence: who in the clan has a live sidebar socket right now.
+  app.get<{ Params: { clanId: string } }>('/clans/:clanId/presence', async (req, reply) => {
+    const user = await userFromRequest(deps.db, req)
+    if (!user) return reply.code(401).send({ error: 'unauthenticated' })
+    const clanId = parseId(req.params.clanId)
+    if (clanId === null) return reply.code(400).send({ error: 'invalid id' })
+    const member = await deps.db.query(
+      `SELECT 1 FROM clan_members WHERE clan_id = $1 AND user_id = $2`,
+      [clanId, user.id],
+    )
+    if (!member.rows[0]) return reply.code(403).send({ error: 'not a clan member' })
+    return reply.send({ online: deps.broadcaster?.online(clanId) ?? [] })
+  })
+
+  // Nudge a clanmate. Delivered live over the clan socket and kept for 24h pickup.
+  app.post<{ Params: { clanId: string }; Body: { to: string; message: string } }>(
+    '/clans/:clanId/ping',
+    {
+      schema: {
+        body: {
+          type: 'object', required: ['to', 'message'],
+          properties: {
+            to: { type: 'string', minLength: 1, maxLength: 60 },
+            message: { type: 'string', minLength: 1, maxLength: 120 },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (req, reply) => {
+      const user = await userFromRequest(deps.db, req)
+      if (!user) return reply.code(401).send({ error: 'unauthenticated' })
+      const clanId = parseId(req.params.clanId)
+      if (clanId === null) return reply.code(400).send({ error: 'invalid id' })
+      const member = await deps.db.query(
+        `SELECT 1 FROM clan_members WHERE clan_id = $1 AND user_id = $2`,
+        [clanId, user.id],
+      )
+      if (!member.rows[0]) return reply.code(403).send({ error: 'not a clan member' })
+      const target = await deps.db.query<{ id: number }>(
+        `SELECT u.id FROM users u JOIN clan_members cm ON cm.user_id = u.id
+         WHERE cm.clan_id = $1 AND u.handle = $2`,
+        [clanId, req.body.to],
+      )
+      if (!target.rows[0]) return reply.code(404).send({ error: 'no such clanmate' })
+      const recent = await deps.db.query(
+        `SELECT 1 FROM pings WHERE clan_id = $1 AND from_user = $2 AND to_user = $3
+         AND created_at > now() - interval '2 minutes'`,
+        [clanId, user.id, target.rows[0].id],
+      )
+      if (recent.rows[0]) return reply.code(429).send({ error: 'easy — one ping per person every 2 minutes' })
+      await deps.db.query(
+        `INSERT INTO pings (clan_id, from_user, to_user, message) VALUES ($1, $2, $3, $4)`,
+        [clanId, user.id, target.rows[0].id, req.body.message],
+      )
+      deps.broadcaster?.ping(clanId, user.handle, req.body.to, req.body.message)
+      return reply.send({ sent: true })
+    },
+  )
+
+  // Pings addressed to me in the last 24h (offline pickup).
+  app.get<{ Params: { clanId: string } }>('/clans/:clanId/pings', async (req, reply) => {
+    const user = await userFromRequest(deps.db, req)
+    if (!user) return reply.code(401).send({ error: 'unauthenticated' })
+    const clanId = parseId(req.params.clanId)
+    if (clanId === null) return reply.code(400).send({ error: 'invalid id' })
+    const { rows } = await deps.db.query<{ handle: string; message: string; created_at: string }>(
+      `SELECT f.handle, p.message, p.created_at FROM pings p
+       JOIN users f ON f.id = p.from_user
+       WHERE p.clan_id = $1 AND p.to_user = $2 AND p.created_at > now() - interval '24 hours'
+       ORDER BY p.created_at DESC LIMIT 10`,
+      [clanId, user.id],
+    )
+    return reply.send({
+      pings: rows.map((r) => ({ from: r.handle, message: r.message, at: r.created_at })),
+    })
+  })
+
   // Shared metrics only: a row appears solely when the owner opted in via /share.
   app.get<{ Params: { clanId: string } }>('/clans/:clanId/metrics', async (req, reply) => {
     const user = await userFromRequest(deps.db, req)

@@ -7,6 +7,12 @@ export interface Project {
   deployUrl: string | null
 }
 
+export interface Ping {
+  from: string
+  message: string
+  at: string
+}
+
 export interface SharedMetric {
   handle: string
   projectName: string
@@ -110,6 +116,19 @@ export class ApiClient {
   clanFeed(clanId: number): Promise<Maybe<FeedEvent[]>> {
     return this.cachedGet(`feed-${clanId}`, `/clans/${clanId}/feed`,
       (r: { events: FeedEvent[] }) => r.events, [])
+  }
+
+  clanPings(clanId: number): Promise<Maybe<Ping[]>> {
+    return this.cachedGet(`pings-${clanId}`, `/clans/${clanId}/pings`,
+      (r: { pings: Ping[] }) => r.pings, [])
+  }
+
+  presence(clanId: number): Promise<{ online: string[] }> {
+    return this.request('GET', `/clans/${clanId}/presence`)
+  }
+
+  sendPing(clanId: number, to: string, message: string): Promise<unknown> {
+    return this.request('POST', `/clans/${clanId}/ping`, { to, message })
   }
 
   clanMetrics(clanId: number): Promise<Maybe<SharedMetric[]>> {

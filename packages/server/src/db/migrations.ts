@@ -84,6 +84,14 @@ CREATE TABLE IF NOT EXISTS metric_snapshots (
   captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (project_id, metric)
 );
+CREATE TABLE IF NOT EXISTS pings (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  clan_id BIGINT NOT NULL REFERENCES clans(id),
+  from_user BIGINT NOT NULL REFERENCES users(id),
+  to_user BIGINT NOT NULL REFERENCES users(id),
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS metric_shares (
   project_id BIGINT NOT NULL REFERENCES projects(id),
   metric TEXT NOT NULL CHECK (metric IN ('mrr','views','social')),

@@ -12,21 +12,46 @@ interface SocketLike {
 }
 
 export class ClanBroadcaster implements Notifier {
-  private readonly clans = new Map<number, Set<SocketLike>>()
+  private readonly clans = new Map<number, Map<SocketLike, string>>()
 
   constructor(private readonly db: Db) {}
 
-  register(clanId: number, socket: SocketLike): () => void {
+  register(clanId: number, socket: SocketLike, handle = ''): () => void {
     let set = this.clans.get(clanId)
     if (!set) {
-      set = new Set()
+      set = new Map()
       this.clans.set(clanId, set)
     }
-    set.add(socket)
+    set.set(socket, handle)
+    this.broadcastPresence(clanId)
     return () => {
       set.delete(socket)
       if (set.size === 0) this.clans.delete(clanId)
+      this.broadcastPresence(clanId)
     }
+  }
+
+  online(clanId: number): string[] {
+    return [...new Set([...(this.clans.get(clanId)?.values() ?? [])].filter(Boolean))].sort()
+  }
+
+  private send(clanId: number, message: string): void {
+    for (const socket of this.clans.get(clanId)?.keys() ?? []) {
+      if (socket.readyState !== 1) continue
+      try {
+        socket.send(message)
+      } catch {
+        // dead sockets are cleaned up on close; never fail the emission
+      }
+    }
+  }
+
+  private broadcastPresence(clanId: number): void {
+    this.send(clanId, JSON.stringify({ type: 'presence', online: this.online(clanId) }))
+  }
+
+  ping(clanId: number, from: string, to: string, message: string): void {
+    this.send(clanId, JSON.stringify({ type: 'ping', from, to, message }))
   }
 
   async milestone(ev: MilestoneEvent & { handle: string; projectName: string }): Promise<void> {
@@ -37,14 +62,7 @@ export class ClanBroadcaster implements Notifier {
     )
     const message = JSON.stringify({ type: 'milestone', event: ev })
     for (const row of rows) {
-      for (const socket of this.clans.get(Number(row.clan_id)) ?? []) {
-        if (socket.readyState !== 1) continue
-        try {
-          socket.send(message)
-        } catch {
-          // dead sockets are cleaned up on close; never fail the emission
-        }
-      }
+      this.send(Number(row.clan_id), message)
     }
   }
 }
@@ -71,7 +89,7 @@ export function registerClanSocket(
           [clanId, user.id],
         )
         if (!member.rows[0]) return socket.close(4003)
-        const unregister = deps.broadcaster.register(clanId, socket)
+        const unregister = deps.broadcaster.register(clanId, socket, user.handle)
         ;(connection as unknown as { on(ev: string, fn: () => void): void }).on('close', unregister)
       },
     )

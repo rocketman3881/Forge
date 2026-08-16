@@ -57,6 +57,8 @@ function timeAgo(iso: string): string {
 }
 
 export interface SidebarProps {
+  online: string[]
+  ping: { from: string; to: string; message: string } | null
   projects: Project[]
   eventsByProject: Record<number, MilestoneEvent[]>
   clan: Clan | null
@@ -86,6 +88,13 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
       {props.staleSince && (
         <Box marginTop={1}>
           <Text color="red">● offline — showing state from {timeAgo(props.staleSince)}</Text>
+        </Box>
+      )}
+      {props.ping && (
+        <Box marginTop={1}>
+          <Text backgroundColor="magenta" color="black" bold>
+            {' '}✉ {props.ping.from} → {props.ping.to}: {props.ping.message}{' '}
+          </Text>
         </Box>
       )}
       {props.celebration && (
@@ -132,6 +141,15 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
               </Text>
               <Text dimColor> this week</Text>
             </Text>
+            {props.clan.members.map((m) => (
+              <Text key={m.handle}>
+                <Text color={props.online.includes(m.handle) ? 'green' : 'gray'}>
+                  {props.online.includes(m.handle) ? '● ' : '○ '}
+                </Text>
+                <Text>{m.handle}</Text>
+                <Text dimColor>{props.online.includes(m.handle) ? ' online' : ' offline'}</Text>
+              </Text>
+            ))}
             {props.feed.slice(0, 5).map((e) => (
               <Text key={e.id}>
                 <Text color="yellow">⚡ </Text>

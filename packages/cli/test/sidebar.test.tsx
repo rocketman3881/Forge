@@ -24,6 +24,8 @@ it('renders ladders, clan check-ins, and feed', () => {
       feed={[{ ...ev('revenue', 2), handle: 'tomr', projectName: 'launchpage' }]}
       staleSince={null}
       celebration={null}
+      online={['tomr']}
+      ping={null}
     />,
   )
   const frame = lastFrame()!
@@ -34,7 +36,8 @@ it('renders ladders, clan check-ins, and feed', () => {
   expect(frame).toContain('██▁▁▁ 2/5')
   expect(frame).toContain('1/2 this week')
   expect(frame).toContain('tomr · launchpage · revenue 2')
-  expect(frame).not.toContain('offline')
+  expect(frame).toContain('● tomr online')
+  expect(frame).toContain('○ sarah offline')
 })
 
 it('shows the staleness banner and celebration bar', () => {
@@ -43,10 +46,13 @@ it('shows the staleness banner and celebration bar', () => {
       projects={[]} eventsByProject={{}} clan={null} checkin={null} feed={[]}
       staleSince={new Date(Date.now() - 12 * 60_000).toISOString()}
       celebration={{ ...ev('revenue', 2), handle: 'sarah', projectName: 'shop' }}
+      online={[]}
+      ping={{ from: 'sarah', to: 'tomr', message: 'get back to work 🔨' }}
     />,
   )
   const frame = lastFrame()!
   expect(frame).toContain('offline — showing state from 12m ago')
   expect(frame).toContain('🎉 sarah hit revenue rung 2')
+  expect(frame).toContain('✉ sarah → tomr: get back to work 🔨')
   expect(frame).toContain('no projects')
 })

@@ -93,3 +93,40 @@ it('non-members cannot read clan metrics', async () => {
   })
   expect(res.statusCode).toBe(403)
 })
+
+it('ping requires clan membership, rejects strangers as targets, and rate-limits', async () => {
+  const { db, app, owner, mate, clanId } = await setup()
+  const outsider = await createUserWithToken(db, 3, 'rando')
+  const auth = (t: string) => ({ authorization: `Bearer ${t}` })
+
+  const notMember = await app.inject({
+    method: 'POST', url: `/clans/${clanId}/ping`, headers: auth(outsider.token),
+    payload: { to: 'tomr', message: 'hi' },
+  })
+  expect(notMember.statusCode).toBe(403)
+
+  const badTarget = await app.inject({
+    method: 'POST', url: `/clans/${clanId}/ping`, headers: auth(owner.token),
+    payload: { to: 'rando', message: 'hi' },
+  })
+  expect(badTarget.statusCode).toBe(404)
+
+  const ok = await app.inject({
+    method: 'POST', url: `/clans/${clanId}/ping`, headers: auth(owner.token),
+    payload: { to: 'sarah', message: 'get back to work' },
+  })
+  expect(ok.statusCode).toBe(200)
+
+  const tooSoon = await app.inject({
+    method: 'POST', url: `/clans/${clanId}/ping`, headers: auth(owner.token),
+    payload: { to: 'sarah', message: 'again' },
+  })
+  expect(tooSoon.statusCode).toBe(429)
+
+  const inbox = await app.inject({
+    method: 'GET', url: `/clans/${clanId}/pings`, headers: auth(mate.token),
+  })
+  expect(inbox.json().pings).toEqual([
+    expect.objectContaining({ from: 'tomr', message: 'get back to work' }),
+  ])
+})

@@ -21,7 +21,7 @@ export function App({ api, serverUrl, token, pollMs = 60_000 }: AppProps): React
   const [columns, setColumns] = useState(stdout.columns ?? 80)
   const [state, setState] = useState<SidebarProps>({
     projects: [], eventsByProject: {}, clan: null, checkin: null,
-    feed: [], staleSince: null, celebration: null,
+    feed: [], staleSince: null, celebration: null, online: [], ping: null,
   })
 
   useEffect(() => {

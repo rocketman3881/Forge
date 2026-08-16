@@ -1,7 +1,7 @@
 import { writeFileSync, chmodSync, existsSync, mkdirSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
-import type { ApiClient, CheckinStatus, Clan, FeedEvent, MilestoneEvent, Project, SharedMetric } from './api.js'
+import type { ApiClient, CheckinStatus, Clan, FeedEvent, MilestoneEvent, Ping, Project, SharedMetric } from './api.js'
 import type { Store } from './store.js'
 
 export interface Io {
@@ -134,6 +134,24 @@ export async function how(api: ApiClient, store: Store, io: Io, user: string, mi
   io.log(formatEvidence(hit))
 }
 
+const PING_PRESETS: Record<string, string> = {
+  work: 'get back to work 🔨',
+  lazy: 'stop being lazy — ship something',
+  nice: 'seen your progress, keep going 🔥',
+}
+
+/** `forge ping <user> [message...]`: nudge a clanmate, live if they're online. */
+export async function ping(api: ApiClient, store: Store, io: Io, user: string, words: string[]): Promise<void> {
+  const clanId = store.getConfig().clanId
+  if (!clanId) throw new Error('no clan configured — run `forge clan join <code>` first')
+  if (!user) throw new Error('usage: forge ping <user> [work|lazy|nice|custom message]')
+  const raw = words.join(' ').trim()
+  const message = PING_PRESETS[raw] ?? (raw || PING_PRESETS.work!)
+  await api.sendPing(clanId, user, message)
+  const online = (await api.presence(clanId)).online.includes(user)
+  io.log(`ping → ${user}: "${message}" ${online ? '(delivered live ⚡)' : '(offline — lands within 24h)'}`)
+}
+
 /** `forge share <mrr|views|social> [off]`: opt in/out of clan-visible live metrics. */
 export async function share(api: ApiClient, store: Store, io: Io, metric: string, toggle?: string): Promise<void> {
   const projectId = store.getConfig().projectId
@@ -199,6 +217,8 @@ export function status(store: Store, io: Io): void {
     for (const e of feed) {
       byMember.set(e.handle, [...(byMember.get(e.handle) ?? []), e])
     }
+    const pings = store.getCache<Ping[]>(`pings-${clanId}`)?.value ?? []
+    if (pings[0]) parts.push(paint(`✉ ${pings[0].from}: ${pings[0].message}`, '33'))
     const shared = store.getCache<SharedMetric[]>(`metrics-${clanId}`)?.value ?? []
     const fmtMetric = (s: SharedMetric): string => {
       const v = s.value
@@ -227,5 +247,6 @@ export async function refresh(api: ApiClient): Promise<void> {
     await api.clanFeed(c.id)
     await api.checkinStatus(c.id)
     await api.clanMetrics(c.id)
+    await api.clanPings(c.id)
   }
 }
