@@ -65,22 +65,58 @@ export function App({ api, serverUrl, token, pollMs = 60_000 }: AppProps): React
 
   useEffect(() => {
     if (!state.clan) return
-    const wsUrl = `${serverUrl.replace(/^http/, 'ws')}/clans/${state.clan.id}/ws?token=${token}`
-    const sock = new WebSocket(wsUrl)
-    sock.on('message', (data) => {
-      try {
-        const msg = JSON.parse(String(data)) as { type: string; event: FeedEvent }
-        if (msg.type !== 'milestone') return
-        setState((prev) => ({ ...prev, celebration: msg.event, feed: [msg.event, ...prev.feed] }))
-        setTimeout(() => setState((prev) => ({ ...prev, celebration: null })), 8000)
-      } catch {
-        // malformed push: ignore, poll will reconcile
-      }
-    })
-    sock.on('error', () => {
-      // offline banner already covers this; poll keeps state fresh
-    })
-    return () => sock.close()
+    const clanId = state.clan.id
+    const wsUrl = `${serverUrl.replace(/^http/, 'ws')}/clans/${clanId}/ws?token=${token}`
+    let sock: WebSocket | null = null
+    let retry: NodeJS.Timeout | null = null
+    let closed = false
+
+    const connect = (): void => {
+      if (closed) return
+      sock = new WebSocket(wsUrl)
+      sock.on('message', (data) => {
+        try {
+          const msg = JSON.parse(String(data)) as {
+            type: string
+            event: FeedEvent
+            online?: string[]
+            from?: string
+            to?: string
+            message?: string
+          }
+          if (msg.type === 'presence' && Array.isArray(msg.online)) {
+            const online = msg.online
+            setState((prev) => ({ ...prev, online }))
+            return
+          }
+          if (msg.type === 'ping' && msg.from && msg.message) {
+            const ping = { from: msg.from, to: msg.to ?? '', message: msg.message }
+            setState((prev) => ({ ...prev, ping }))
+            setTimeout(() => setState((prev) => (prev.ping === ping ? { ...prev, ping: null } : prev)), 12000)
+            return
+          }
+          if (msg.type !== 'milestone') return
+          setState((prev) => ({ ...prev, celebration: msg.event, feed: [msg.event, ...prev.feed] }))
+          setTimeout(() => setState((prev) => ({ ...prev, celebration: null })), 8000)
+        } catch {
+          // malformed push: ignore, poll will reconcile
+        }
+      })
+      sock.on('close', () => {
+        // presence is socket-derived: drop to offline view and retry
+        setState((prev) => ({ ...prev, online: [] }))
+        if (!closed) retry = setTimeout(connect, 5000)
+      })
+      sock.on('error', () => {
+        sock?.close()
+      })
+    }
+    connect()
+    return () => {
+      closed = true
+      if (retry) clearTimeout(retry)
+      sock?.close()
+    }
   }, [state.clan?.id, serverUrl, token])
 
   return (
