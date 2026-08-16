@@ -150,6 +150,10 @@ export class ApiClient {
     return this.request('POST', '/clans', { name })
   }
 
+  clanInvite(clanId: number): Promise<{ name: string; inviteCode: string }> {
+    return this.request('GET', `/clans/${clanId}/invite`)
+  }
+
   joinClan(code: string): Promise<{ id: number; name: string }> {
     return this.request('POST', '/clans/join', { code })
   }

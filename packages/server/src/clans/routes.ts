@@ -81,6 +81,22 @@ export function registerClans(app: FastifyInstance, deps: { db: Db }): void {
     },
   )
 
+  // Any member can re-read the invite code to share it.
+  app.get<{ Params: { clanId: string } }>('/clans/:clanId/invite', async (req, reply) => {
+    const user = await userFromRequest(deps.db, req)
+    if (!user) return reply.code(401).send({ error: 'unauthenticated' })
+    const clanId = Number(req.params.clanId)
+    if (!Number.isInteger(clanId) || clanId <= 0) return reply.code(400).send({ error: 'invalid id' })
+    const { rows } = await deps.db.query<{ name: string; invite_code: string }>(
+      `SELECT c.name, c.invite_code FROM clans c
+       JOIN clan_members m ON m.clan_id = c.id AND m.user_id = $2
+       WHERE c.id = $1`,
+      [clanId, user.id],
+    )
+    if (!rows[0]) return reply.code(403).send({ error: 'not a clan member' })
+    return reply.send({ name: rows[0].name, inviteCode: rows[0].invite_code })
+  })
+
   app.get('/clans/mine', async (req, reply) => {
     const user = await userFromRequest(deps.db, req)
     if (!user) return reply.code(401).send({ error: 'unauthenticated' })

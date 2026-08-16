@@ -22,7 +22,7 @@ const HELP = `forge — verified founder accountability, in your terminal
   forge connect stripe <restricted read-only key>
   forge connect deploy <https://url>
   forge connect domain <example.com>
-  forge clan create <name> | forge clan join <code>
+  forge clan create <name> | forge clan join <code> | forge clan invite
   forge checkin             weekly three-field check-in
   forge how <user> <milestone>   e.g. forge how sarah revenue2
   forge refresh             warm the offline cache
