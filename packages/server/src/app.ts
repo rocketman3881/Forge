@@ -33,6 +33,19 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   if (deps.broadcaster) registerClanSocket(app, { db: deps.db, broadcaster: deps.broadcaster })
   app.get('/health', async () => ({ ok: true }))
   registerWebPages(app, deps.publicUrl ?? 'http://localhost:3000')
+
+  // Invite landing: one copy-paste command that installs, signs in, and joins.
+  app.get<{ Params: { code: string } }>('/join/:code', async (req, reply) => {
+    const code = req.params.code
+    if (!/^[A-Za-z0-9_-]{1,50}$/.test(code)) return reply.code(404).send({ error: 'not found' })
+    const { rows } = await deps.db.query<{ name: string }>(
+      `SELECT c.name FROM clans c WHERE c.invite_code = $1`,
+      [code],
+    )
+    const html = joinPage(rows[0]?.name ?? null, code, deps.publicUrl)
+    return reply.code(rows[0] ? 200 : 404).type('text/html; charset=utf-8').send(html)
+  })
+
   registerProjects(app, { db: deps.db })
   registerClans(app, { db: deps.db })
   registerCheckins(app, { db: deps.db })
@@ -193,6 +206,29 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 }
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public')
+
+const escapeHtml = (s: string): string =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+
+function joinPage(clanName: string | null, code: string, publicUrl = 'http://localhost:3000'): string {
+  const cmd = `curl -fsSL ${publicUrl}/install.sh | FORGE_JOIN=${code} sh`
+  const title = clanName ? `Join ${escapeHtml(clanName)} on Forge` : 'Invite not found'
+  const body = clanName
+    ? `<p class="big">You've been invited to <strong>${escapeHtml(clanName)}</strong>.</p>
+       <p>One command installs Forge, signs you in with GitHub, and joins the clan:</p>
+       <div class="cmd"><code id="c">${escapeHtml(cmd)}</code><button onclick="navigator.clipboard.writeText(document.getElementById('c').textContent).then(()=>{this.textContent='Copied'})">Copy</button></div>
+       <p class="dim">Needs Node 22+, pnpm, and git. Then run <code>forge</code> to open the sidebar.</p>`
+    : `<p class="big">This invite link isn't valid anymore.</p><p class="dim">Ask your friend to run <code>forge clan invite</code> and send you a fresh link.</p>`
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title}</title><style>
+body{background:#0a0c10;color:#e9eef5;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;display:grid;place-items:center;min-height:100vh;margin:0;padding:1.5rem;box-sizing:border-box}
+main{max-width:44rem}h1{color:#f0b429;font-size:1.25rem}.big{font-size:1.25rem}.dim{color:#a3adba}
+.cmd{display:flex;gap:.75rem;align-items:center;background:#12151b;border:1px solid #262c36;border-radius:.625rem;padding:.75rem 1rem;margin:1.25rem 0}
+.cmd code{flex:1;overflow-x:auto;white-space:nowrap}code{color:#76e3ea}
+button{background:#f0b429;border:none;border-radius:.375rem;padding:.375rem .75rem;font-weight:600;cursor:pointer}
+a{color:#f0b429}</style></head><body><main><h1>⚒ forge</h1>${body}
+<p class="dim"><a href="${publicUrl}">what is forge?</a></p></main></body></html>`
+}
 
 function registerWebPages(app: FastifyInstance, publicUrl: string): void {
   const page = (file: string): string | null => {

@@ -131,6 +131,19 @@ async function main(): Promise<void> {
   }
 }
 
+async function consumePendingJoin(store: KeychainStore, api: ApiClient): Promise<void> {
+  const code = store.getConfig().pendingJoin
+  if (!code) return
+  try {
+    const c = await api.joinClan(code)
+    store.setConfig({ clanId: c.id, pendingJoin: undefined })
+    io.log(`joined clan "${c.name}" ⚡`)
+  } catch (err) {
+    store.setConfig({ pendingJoin: undefined })
+    io.error(`could not join clan: ${err instanceof Error ? err.message : 'unknown error'}`)
+  }
+}
+
 main().catch((err: Error) => {
   io.error(err.message)
   process.exitCode = 1

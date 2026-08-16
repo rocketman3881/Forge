@@ -45,6 +45,18 @@ if [ ! -f "$CONFIG" ]; then
   printf '{\n  "serverUrl": "%s"\n}\n' "$SERVER_URL" > "$CONFIG"
 fi
 
+# Invite flow: /join/<code> pages pass FORGE_JOIN so first login auto-joins the clan.
+if [ -n "${FORGE_JOIN:-}" ]; then
+  node -e '
+    const fs = require("fs");
+    const p = process.argv[1];
+    const cfg = JSON.parse(fs.readFileSync(p, "utf8"));
+    cfg.pendingJoin = process.argv[2];
+    fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n");
+  ' "$CONFIG" "$FORGE_JOIN"
+  say "invite code saved — you will join the clan on first login"
+fi
+
 say ""
 say "forge installed to $BIN_DIR/forge"
 case ":$PATH:" in
@@ -54,4 +66,8 @@ case ":$PATH:" in
     say "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zprofile && exec \$SHELL"
     ;;
 esac
-say "next: forge login"
+if [ -n "${FORGE_JOIN:-}" ]; then
+  say "next: forge login   (joins the clan automatically)"
+else
+  say "next: forge login"
+fi

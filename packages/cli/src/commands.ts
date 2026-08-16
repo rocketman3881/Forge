@@ -108,11 +108,10 @@ export async function clan(api: ApiClient, store: Store, io: Io, sub: string, ar
     const clanId = store.getConfig().clanId
     if (!clanId) throw new Error('no clan configured — run `forge clan create <name>` or `forge clan join <code>`')
     const { name, inviteCode } = await api.clanInvite(clanId)
-    io.log(`invite a friend to "${name}" — send them this:`)
+    const base = store.getConfig().serverUrl ?? 'https://forge.thecamelclub.co.uk'
+    io.log(`invite to "${name}" — send this one link:`)
     io.log('')
-    io.log(`  1. install: curl -fsSL https://forge.thecamelclub.co.uk/install.sh | sh`)
-    io.log(`  2. sign in: forge login`)
-    io.log(`  3. join:    forge clan join ${inviteCode}`)
+    io.log(`  ${base}/join/${inviteCode}`)
     return
   }
   if (sub === 'join') {

@@ -10,6 +10,8 @@ export interface ForgeConfig {
   serverUrl?: string
   projectId?: number
   clanId?: number
+  /** invite code captured by the installer; consumed on first login */
+  pendingJoin?: string
 }
 
 export interface CacheHit<T> {
