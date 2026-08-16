@@ -31,9 +31,10 @@ function panelLines(store: Store): Line[] {
     lines.push(line(dim('no cache — forge refresh')))
     return lines
   }
+  // open-ended climb, matching the sidebar: height reached, no finish line
   const bar = (raw: number, color: string) => {
-    const rung = Math.min(5, Math.max(0, raw))
-    return `${ESC}[${color}m${'█'.repeat(rung)}${ESC}[2m${'▁'.repeat(5 - rung)}${RESET}`
+    const rung = Math.max(0, Math.min(9, Math.trunc(raw)))
+    return rung === 0 ? `${ESC}[2m·${RESET}` : `${ESC}[${color}m${'▲'.repeat(rung)}${rung}${RESET}`
   }
   for (const p of projects.slice(0, 3)) {
     const events = store.getCache<MilestoneEvent[]>(`events-${p.id}`)?.value ?? []

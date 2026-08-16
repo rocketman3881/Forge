@@ -3,7 +3,6 @@ import { Box, Text } from 'ink'
 import type { Clan, CheckinStatus, FeedEvent, MilestoneEvent, Project } from '../api.js'
 
 const VERTICALS = ['build', 'ship', 'revenue'] as const
-const MAX_RUNG = 5
 
 const BANNER = [
   '╔═╗╔═╗╦═╗╔═╗╔═╗',
@@ -30,13 +29,28 @@ const COLORS: Record<(typeof VERTICALS)[number], string> = {
   revenue: 'green',
 }
 
-export function Ladder({ rung, color }: { rung: number; color: string }): React.JSX.Element {
+/** What each height means — shown next to the climb so it reads as history, not a meter. */
+const MILESTONE_NAMES: Record<(typeof VERTICALS)[number], Record<number, string>> = {
+  build: { 1: 'first commit', 2: 'first merged PR', 3: 'CI passing', 4: 'tests green 7d', 5: '100 commits' },
+  ship: { 1: 'deployed live', 2: 'custom domain', 3: 'launched', 4: 'uptime 30d', 5: 'users active' },
+  revenue: { 1: 'stripe live', 2: 'first dollar', 3: '10 customers', 4: 'first $100', 5: 'first $1k' },
+}
+
+/**
+ * Open-ended climb: height reached so far, never distance-to-done.
+ * A business has no finish line, so there is no full bar to fill.
+ */
+export function Ladder({ rung, color, latest }: { rung: number; color: string; latest?: string }): React.JSX.Element {
+  if (rung === 0) {
+    return (
+      <Text dimColor>· not yet</Text>
+    )
+  }
   return (
     <Text>
-      <Text color={color}>{'█'.repeat(rung)}</Text>
-      <Text dimColor>{'▁'.repeat(MAX_RUNG - rung)}</Text>
-      <Text dimColor> {rung}/{MAX_RUNG}</Text>
-      {rung === MAX_RUNG && <Text color="yellow"> ★</Text>}
+      <Text color={color}>{'▲'.repeat(rung)}</Text>
+      <Text color={color} bold> {rung}</Text>
+      {latest && <Text dimColor> · {latest}</Text>}
     </Text>
   )
 }
@@ -111,7 +125,12 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
         </Box>
       )}
       {props.projects.map((p) => {
-        const rungs = topRungs(props.eventsByProject[p.id] ?? [])
+        const events = props.eventsByProject[p.id] ?? []
+        const rungs = topRungs(events)
+        const latestFor = (v: (typeof VERTICALS)[number]): string | undefined => {
+          const hit = [...events].reverse().find((e) => e.vertical === v)
+          return hit ? MILESTONE_NAMES[v][hit.rung] ?? undefined : undefined
+        }
         return (
           <Box key={p.id} flexDirection="column" marginTop={1}>
             <Text>
@@ -123,7 +142,7 @@ export function Sidebar(props: SidebarProps): React.JSX.Element {
                 <Box width={9}>
                   <Text color={COLORS[v]}>{v}</Text>
                 </Box>
-                <Ladder rung={rungs[v]} color={COLORS[v]} />
+                <Ladder rung={rungs[v]} color={COLORS[v]} latest={latestFor(v)} />
               </Box>
             ))}
           </Box>
